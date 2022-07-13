@@ -1,34 +1,39 @@
 #! /usr/bin/env nextflow
 
 process bbduk_clean {
+
 	input:
-	  //file x
-	  tuple val(old), val(new) from samplesMap
-	 
+  
+	  tuple val(sampid), val(illuid)
+
 	output:
-	 
-	 
-	shell:
-	'''
-	odir="${PATHTO}/cleanseqs";
-	mkdir -vp $odir;
-	infile="${PATHFROM}/!{old}";
-	outfile="${odir}/!{new}";
+	  val "${illuid}_pe1.fastq.gz", emit: outPE1
+	  val "${illuid}_pe2.fastq.gz", emit: outPE2
+	  val "${illuid}_sgl.fastq.gz", emit: outSGL
+
+	script:
+	
+	//println "# BBDUK on $sampid"
+	
+	"""
+	mkdir -vp $params.clnfq_dir;
 	# Adapters Trimming:
-	cat <<"EOF" 
-	$BBDUK_PATH/bbduk.sh  \
-	         in=${infile}_R1_001.fastq.gz \
-		    in2=${infile}_R2_001.fastq.gz \
-		    out=${outfile}_pe1.fastq.gz   \
-		   out2=${outfile}_pe2.fastq.gz   \
-		   outs=${outfile}_sgl.fastq.gz   \
-            ref=$BBDUK_PATH/resources/adapters.fa \
+	
+	\$BBDUK_PATH/bbduk.sh  \
+	         in=${sampid}_R1_001.fastq.gz \
+		    in2=${sampid}_R2_001.fastq.gz \
+		    out=${illuid}_pe1.fastq.gz \
+		   out2=${illuid}_pe2.fastq.gz \
+		   outs=${illuid}_sgl.fastq.gz \
+            ref=\$BBDUK_PATH/resources/adapters.fa \
               k=13 ktrim=r useshortkmers=t mink=5 \
           qtrim=t trimq=20 minlength=32           \
-        threads=!{NCPUS} overwrite=true maq=10    \
-             2> $outfile.log 1>&2 ;
-    touch $outfile.bbduk_clean.ok;
-EOF    
-	'''
+        threads=$params.NCPUS overwrite=true maq=10 \
+        stats=${illuid}_stats.out \
+             2> ${illuid}.bbduk_clean.log 1>&2 ;
+    touch ${illuid}.bbduk_clean.ok; 
+	"""
 
 }
+
+

@@ -1,8 +1,4 @@
 #! /usr/bin/env nextflow
-//mychan=Chanel.fromPath("params.rawfq/samplesMap.keySet()*.fastq.gz")
-//params.rawfq = "$params.wdir/rawseqs_fastq/samplesMap.keySet()_{R1,R2}*.fastq.gz"
-//params.rawfqD = "$params.wdir/rawseqs_fastq/"
-//params.clnseqsD="$params.wdir/cleanseqs"
 
 // process bbduk_clean2   {
 //
@@ -111,11 +107,7 @@ process bbduk_clean2 {
 	  val "${illuid}_pe1.fastq.gz", emit: outPE1
 	  val "${illuid}_pe2.fastq.gz", emit: outPE2
 	  val "${illuid}_sgl.fastq.gz", emit: outSGL
-	  
-	  //tuple path ("${illuid}_pe1.fastq.gz"),
-	    //    path ("${illuid}_pe2.fastq.gz"),
-	      //  path ("${illuid}_sgl.fastq.gz)"
-	
+
 	  
 	
 	script:
@@ -136,6 +128,7 @@ process bbduk_clean2 {
               k=13 ktrim=r useshortkmers=t mink=5 \
           qtrim=t trimq=20 minlength=32           \
         threads=$params.NCPUS overwrite=true maq=10 \
+        stats=${illuid}_stats.out \
              2> ${illuid}.bbduk_clean.log 1>&2 ;
     touch ${illuid}.bbduk_clean.ok; 
 	"""
