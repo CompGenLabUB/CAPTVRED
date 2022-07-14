@@ -3,6 +3,7 @@
 process generate_index_bowtie {
     input:
 
+         val dep
          val x
 
     output:
@@ -38,6 +39,7 @@ process generate_index_bowtie {
 process bowtie_amplicons_alignment {
 
     input:
+      val dep
       tuple val(idx_path), val(pe1), val(pe2), val(sgle)
     
     output:
@@ -78,6 +80,7 @@ process bowtie_amplicons_alignment {
 process bowtie_amplicons_alignment_sg {
 
     input:
+      val dep
       tuple val(idx_path), val(pe1), val(pe2), val(sgle)
     
     output:
@@ -109,6 +112,11 @@ process bowtie_amplicons_alignment_sg {
             rm -vf ${odir}/${sgle_root}.bowtie.bam;
             samtools index  ${odir}/${sgle_root}.bowtie.sorted.bam;
             touch ${odir}/${sgle_root}.ok
+            """
+
+        else
+            """
+            touch ${odir}/${sgle_root}.bowtie.sam ${odir}/${sgle_root}.bowtie.bam ${odir}/${sgle_root}.bowtie.sorted.bam;
             """
 
 }

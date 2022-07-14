@@ -36,21 +36,31 @@ SamplesDef.eachLine {
 }
 
 log.info """\
+ =======================================
  V I R W A S T E - N F   P I P E L I N E
  =======================================
  RUN     : ${params.runID}
  Samples : ${samplesMap}
  SysInfo : ${workflow.userName} SID=${workflow.sessionId} NCPUs=${params.NCPUS} GITcid=${workflow.commitId}
+ =======================================
  """
    
 workflow init_samples() {
 
+  main:
     println "# INIT: $samplesMap"
+
+  emit:
+    ""
 
 }
 
 workflow fastqc_onrawseqs() {
 
+  take:
+    x
+
+  main:
    println "# Running fastqc on raw fastq sequences ... ..."
    fastQC(Channel.fromPath(params.rawfq)) | collect | multiQC_raw
     
@@ -58,6 +68,12 @@ workflow fastqc_onrawseqs() {
 
 
 workflow reads_clean() {
+
+  take:
+
+    x
+
+  main:
 
     println "# Cleaning raw fastq sequences with BBDuk ... ..."
     def paths_list=[]
@@ -69,10 +85,14 @@ workflow reads_clean() {
          paths_list << newsamp
     }
     println "Reads cleaning with BBDuk ..."
-    bbduk_clean(Channel.from(paths_list)) 
+    bbduk_clean(x, Channel.from(paths_list)) 
    
     println "# Running fastQC + multiQC on clean fastq sequences ... ..."
     fastQC( bbduk_clean.out.mix() ) | collect | multiQC_clean
+
+  emit: 
+
+    bbduk_clean.out.mix()      
 
 }
 
@@ -81,11 +101,15 @@ workflow reads_clean() {
 
 workflow amplicon_sequences_dbinit() {
 
-    // main:
-      generate_index_bowtie(params.amplicon_refseqs)
+    take:
+      x
+      refseqs
+
+    main:
+      generate_index_bowtie(x,refseqs)
       
-    // emit:
-    //  generate_index_bowtie.out.IDX
+    emit:
+      generate_index_bowtie.out
 
     // Channel
     //  .from(generate_index_bowtie(params.amplicon_refseqs).IDX)
@@ -99,11 +123,19 @@ workflow amplicon_sequences_bowtie() {
       x
 
     main:
-      bowtie_amplicons_alignment(x)
+      bowtie_amplicons_alignment(x) | collect
+
+    emit:
+      bowtie_amplicons_alignment.out
 
 }
 
 workflow amplicon_sequences_align() {
+
+   take:
+     x
+
+   main:
  
     def cluster_index_path = params.amplicon_refseqs.toString().replaceAll(".fa.gz", "_index")
    
@@ -119,11 +151,14 @@ workflow amplicon_sequences_align() {
 
    
     println "# Running bowtie on clean fastq sequences ... $samples_lst ..."
-    bowtie_amplicons_alignment(Channel.from(samples_lst))
-    bowtie_amplicons_alignment_sg(Channel.from(samples_lst))
+    bowtie_amplicons_alignment(x, Channel.from(samples_lst))
+    bowtie_amplicons_alignment_sg(x, Channel.from(samples_lst))
     
     multiQC_bowtie_amp(bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect())
-    
+  
+  emit:
+
+    bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out)
 
 }
 
@@ -136,12 +171,12 @@ workflow {
     println "# Project   : $workflow.projectDir"
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.sampletbl"
-    init_samples()
-    fastqc_onrawseqs()
-    reads_clean()
-    generate_index_bowtie(params.amplicon_refseqs) | collect
-    amplicon_sequences_align() 
-    
+    init_samples() 
+    fastqc_onrawseqs(init_samples.out) 
+    reads_clean(init_samples.out)
+    generate_index_bowtie(reads_clean.out.collect(),params.amplicon_refseqs)
+    amplicon_sequences_align(generate_index_bowtie.out.collect())
+
     println "# Finishing : $workflow.userName"
     
 }

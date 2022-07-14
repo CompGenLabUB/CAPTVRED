@@ -4,7 +4,8 @@ process bbduk_clean {
 
 	input:
   
-	  tuple val(sampid), val(illuid)
+	  val dep
+          tuple val(sampid), val(illuid)
 
 	output:
 	  val "${illuid}_pe1.fastq.gz", emit: outPE1
