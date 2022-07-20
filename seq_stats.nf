@@ -11,8 +11,7 @@ process fastQC {
         //println "## FASTQC on sample: $x"
         odir=x.toString().replaceAll(".gz", ".QC")
     """
-    #aa=$x
-    #odir=\${aa%%.gz}".QC"
+
     mkdir -vp $odir
     fastqc $x -o $odir
     """
@@ -26,7 +25,6 @@ process multiQC_raw {
    
       //input is a list, transdorm it into a string so miliqc can use it as argument
     sampdirs=x.join("  ")
-    // println "## MultiQC on dirs: $sampdirs"
      
     """
     multiqc $sampdirs \
@@ -47,7 +45,6 @@ process multiQC_clean {
    
       //input is a list, transdorm it into a string so miliqc can use it as argument
     sampdirs=x.join("  ")
-    //println "## MultiQC on dirs: $sampdirs"
      
     """
     multiqc $sampdirs \
@@ -65,13 +62,12 @@ process multiQC_bowtie_amp {
 
     input:
      val x
-
+    
     script:
    
     //input is a list, transform it into a string so multiqc can use it as argument
     //sampdirs=x.join("  ")
     samplogs=x.join("  ").replaceAll(".sorted.bam", ".log")
-    println "## MultiQC on dirs: $samplogs"
     """
     multiqc $samplogs \
         --title "$params.runID MultiQC in bam files after amplicon align with bowtie"    \

@@ -6,6 +6,7 @@ params.runID = "$RUNID"
 params.sampletbl = "$params.wdir/samples_definition.tbl"
 params.rawfq = "$params.wdir/rawseqs_fastq/*R{1,2}*.fastq.gz"
 params.amplicon_refseqs="$AMPSQ"
+params.amplicon_refseqs_dir="$AMPSQD"
 
 params.NCPUS = 32
 
@@ -13,6 +14,7 @@ params.rawfq_dir="$params.wdir/rawseqs_fastq"
 params.reports_dir="$params.wdir/reports"
 params.clnfq_dir="$params.wdir/cleanseqs"
 params.ampaln_dir="$params.wdir/amplicons_alignment"
+params.asbl_dir="$params.wdir/assembly"
 
 // include { load_sampleids; samplecheck } from './check_inputs.nf'
 include { samplecheck } from './check_inputs.nf'
@@ -22,7 +24,8 @@ include { samplecheck } from './check_inputs.nf'
 include { bbduk_clean } from './rawfq_clean.nf'
 include { fastQC; multiQC_raw; multiQC_clean; multiQC_bowtie_amp } from './seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
-
+include { megahit_assembly_pe; megahit_assembly_sg; megahit_assembly_all} from './reads_assembly.nf'
+include { trinity_assembly_sg; trinity_assembly_pe } from './reads_assembly.nf'
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
 SamplesDef.eachLine {
@@ -44,6 +47,10 @@ log.info """\
  SysInfo : ${workflow.userName} SID=${workflow.sessionId} NCPUs=${params.NCPUS} GITcid=${workflow.commitId}
  =======================================
  """
+ 
+ // def logFile = new File()
+ 
+ 
    
 workflow init_samples() {
 
@@ -61,7 +68,6 @@ workflow fastqc_onrawseqs() {
     x
 
   main:
-   println "# Running fastqc on raw fastq sequences ... ..."
    fastQC(Channel.fromPath(params.rawfq)) | collect | multiQC_raw
     
 }
@@ -75,7 +81,6 @@ workflow reads_clean() {
 
   main:
 
-    println "# Cleaning raw fastq sequences with BBDuk ... ..."
     def paths_list=[]
     //paths_list is a LoL: where first item is the raw fastq root 
     //for each sample and the second onw is the new root for the cleanseqs.
@@ -84,20 +89,19 @@ workflow reads_clean() {
          def newsamp=["$params.rawfq_dir/$illuminaID", "$params.clnfq_dir/$sampleID"]
          paths_list << newsamp
     }
-    println "Reads cleaning with BBDuk ..."
     bbduk_clean(x, Channel.from(paths_list)) 
-   
-    println "# Running fastQC + multiQC on clean fastq sequences ... ..."
+    
     fastQC( bbduk_clean.out.mix() ) | collect | multiQC_clean
 
   emit: 
 
-    bbduk_clean.out.mix()      
+    bbduk_clean.out.outPE1
+    bbduk_clean.out.outPE2
+    bbduk_clean.out.outSGL
 
 }
 
 
-// workflow amplicon_sequences_align() {
 
 workflow amplicon_sequences_dbinit() {
 
@@ -111,9 +115,6 @@ workflow amplicon_sequences_dbinit() {
     emit:
       generate_index_bowtie.out
 
-    // Channel
-    //  .from(generate_index_bowtie(params.amplicon_refseqs).IDX)
-    //  .set { cluster_index_path }
 
 }
 
@@ -150,7 +151,6 @@ workflow amplicon_sequences_align() {
     }
 
    
-    println "# Running bowtie on clean fastq sequences ... $samples_lst ..."
     bowtie_amplicons_alignment(x, Channel.from(samples_lst))
     bowtie_amplicons_alignment_sg(x, Channel.from(samples_lst))
     
@@ -163,6 +163,32 @@ workflow amplicon_sequences_align() {
 }
 
 
+workflow assembly_sequences_flow() {
+
+   take:
+    p_end1
+    p_end2
+    s_end
+
+   main:
+
+     // MEGAHIT //
+    //megahit_assembly_pe(p_end1, p_end2)
+    //megahit_assembly_sg(s_end)
+    megahit_assembly_all(p_end1, p_end2, s_end)
+    
+    // TRINNITY //
+    trinity_assembly_sg(s_end)
+    trinity_assembly_pe(p_end1, p_end2)
+    
+  emit:
+    //megahit_assembly_pe.out
+    //megahit_assembly_sg.out
+    megahit_assembly_all.out
+   
+
+}
+
 // // // // // // MAIN // // // // // //  
 
 workflow {
@@ -174,10 +200,9 @@ workflow {
     init_samples() 
     fastqc_onrawseqs(init_samples.out) 
     reads_clean(init_samples.out)
-    generate_index_bowtie(reads_clean.out.collect(),params.amplicon_refseqs)
+    generate_index_bowtie(reads_clean.out.mix().collect(),params.amplicon_refseqs)
     amplicon_sequences_align(generate_index_bowtie.out.collect())
-
-    println "# Finishing : $workflow.userName"
+    assembly_sequences_flow(reads_clean.out )
     
 }
 

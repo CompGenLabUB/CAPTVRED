@@ -14,7 +14,6 @@ process bbduk_clean {
 
 	script:
 	
-	//println "# BBDUK on $sampid"
 	
 	"""
 	mkdir -vp $params.clnfq_dir;
