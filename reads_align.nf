@@ -3,7 +3,7 @@
 process generate_index_bowtie {
     input:
 
-         val dep
+         //val dep
          val x
 
     output:
@@ -39,8 +39,12 @@ process generate_index_bowtie {
 process bowtie_amplicons_alignment {
 
     input:
-      val dep
-      tuple val(idx_path), val(pe1), val(pe2), val(sgle)
+      //val dep
+      //tuple val(idx_path), val(pe1), val(pe2), val(sgle)
+      val(idx_path)
+      val(pe1)
+      val(pe2)
+      val(sgle)
     
     output:
     
@@ -49,10 +53,10 @@ process bowtie_amplicons_alignment {
     script:
 
                       
-        idir=params.clnfq_dir
+        //idir=params.clnfq_dir
         odir=params.ampaln_dir
 
-        pe_root=pe1.toString().replaceAll("_pe1.fastq.gz", "_pe")
+        pe_root=pe1.split('/')[-1].toString().replaceAll("_pe1.fastq.gz", "_pe")
 
         
         
@@ -61,7 +65,7 @@ process bowtie_amplicons_alignment {
         bowtie2 --threads $params.NCPUS -q  -x ${idx_path} \
                 --local --sensitive-local  -N 1            \
                 --met-file ${odir}/${pe_root}.metrics      \
-                -1 ${idir}/${pe1} -2 ${idir}/${pe2}        \
+                -1 ${pe1} -2 ${pe2}        \
                 -S ${odir}/${pe_root}.bowtie.sam           \
                 2> ${odir}/${pe_root}.bowtie.log;
         
@@ -71,7 +75,7 @@ process bowtie_amplicons_alignment {
                        > ${odir}/${pe_root}.bowtie.sorted.bam;
         rm -vf ${odir}/${pe_root}.bowtie.bam;
         samtools index  ${odir}/${pe_root}.bowtie.sorted.bam;
-        samtools view -F4 -f67 -h ${odir}/${pe_root}.bowtie.sorted.bam \
+        samtools view -F2052 -f3 -h ${odir}/${pe_root}.bowtie.sorted.bam \
                     -o ${odir}/${pe_root}.bowtie.sorted.mapped.bam
         touch ${odir}/${pe_root}.ok
         
@@ -82,8 +86,12 @@ process bowtie_amplicons_alignment {
 process bowtie_amplicons_alignment_sg {
 
     input:
-      val dep
-      tuple val(idx_path), val(pe1), val(pe2), val(sgle)
+      //val dep
+      //tuple val(idx_path), val(pe1), val(pe2), val(sgle)
+      val(idx_path)
+      val(pe1)
+      val(pe2)
+      val(sgle)
     
     output:
 
@@ -91,11 +99,11 @@ process bowtie_amplicons_alignment_sg {
       
     script:
 
-        idir=params.clnfq_dir
+        //idir=params.clnfq_dir
         odir=params.ampaln_dir
         
-        sgle_file=file("${idir}/${sgle}")
-        sgle_root=sgle.toString().replaceAll("_sgl.fastq.gz", "_sg")
+        sgle_file=file("${sgle}")
+        sgle_root=sgle.split('/')[-1].toString().replaceAll("_sgl.fastq.gz", "_sg")
         
         if( sgle_file.size() > 0 )
             
@@ -103,7 +111,7 @@ process bowtie_amplicons_alignment_sg {
             bowtie2 --threads $params.NCPUS -q  -x ${idx_path}   \
                     --local --sensitive-local   -N 1             \
                      --met-file ${odir}/${sgle_root}.metrics     \
-                    -U  ${idir}/${sgle}                          \
+                    -U  ${sgle}                          \
                     -S ${odir}/${sgle_root}.bowtie.sam           \
                     2> ${odir}/${sgle_root}.bowtie.log;
                     
