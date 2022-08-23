@@ -25,12 +25,12 @@ process make_db_for_blast {
             if  (refseqs_fasta =~ /\.fa\.gz$/ ) 
                 """
                  gunzip -c ${refseqs_fasta}                |\
-                    makeblastdb -in -  -dbtype nucl            \
-                                -title ${db_name}              \
-                                -out ${out_db} \
+                    makeblastdb -in -  -dbtype nucl         \
+                                -title ${db_name}           \
+                                -out ${out_db}              \
                               2> ${out_db}.log;
                               
-                 date +"DB created on %Y/%m/%d %T %Z %s"       \
+                 date +"DB created on %Y/%m/%d %T %Z %s"    \
                       > ${cdfile};
                 """
                 
@@ -62,7 +62,7 @@ process do_blastn {
 
        blast_q=query.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
        blast_r=db.toString().split('/')[-1]
-       blast_algn="${blast_q}_ON_${blast_r}.blastn.tbl"
+       blast_algn="${blast_q}_ON_${blast_r}.tbl"
        blast_dir=params.contigs_blast_dir
        
        """

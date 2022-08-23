@@ -2,6 +2,7 @@
 // nextflow.enable.dsl=2
 
 params.wdir = "$BDIR"
+params.bindir="$BIND"
 params.runID = "$RUNID"
 params.sampletbl = "$params.wdir/samples_definition.tbl"
 params.rawfq = "$params.wdir/rawseqs_fastq/*R{1,2}*.fastq.gz"
@@ -39,7 +40,8 @@ include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_al
 include { megahit_assembly_all} from './reads_assembly.nf'
 include { trinity_assembly_sg; trinity_assembly_pe } from './reads_assembly.nf'
 include { make_db_for_blast; do_blastn; do_tblastx; best_reciprocal_hit } from './contigs_align.nf'
-include { kaiju_raw; discard_celular } from './taxonomy.nf'
+include { kaiju_raw; discard_nonviral; kaiju_contigs } from './taxonomy.nf'
+include { coverage_plots } from './plots.nf'
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
 SamplesDef.eachLine {
@@ -116,19 +118,19 @@ workflow reads_clean() {
 
 }
 
-workflow reads_filter_celular() {
+workflow reads_filter_nonviral() {
     take:
       x
      
      main:
         kaiju_raw(x)
-        discard_celular(kaiju_raw.out)
+        discard_nonviral(kaiju_raw.out)
      
 
     emit:
-       discard_celular.out.PE1out
-       discard_celular.out.PE2out
-       discard_celular.out.SGLout
+       discard_nonviral.out.PE1out
+       discard_nonviral.out.PE2out
+       discard_nonviral.out.SGLout
 }
 
 
@@ -166,8 +168,8 @@ workflow amplicon_sequences_align() {
   
   emit:
 
-    bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out)
-    
+    PE=bowtie_amplicons_alignment.out
+    SG=bowtie_amplicons_alignment_sg.out
 }
 
 workflow megahit_assembly_flow () {
@@ -177,7 +179,7 @@ workflow megahit_assembly_flow () {
       sgl      
     
     main:
-      ref_fa="${params.amplicon_refseqs}"
+      ref_fa="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
       megahit_assembly_all(pe1,pe2, sgl)
       blast_flow( ref_fa, megahit_assembly_all.out.CGSout)
       blast_flow_rev( megahit_assembly_all.out.CGSout, ref_fa)
@@ -191,7 +193,9 @@ workflow megahit_assembly_flow () {
       best_reciprocal_hit(megahit_assembly_all.out.CGSout, ref_fa, QOR, ROQ )
 
     emit:
-      best_reciprocal_hit.out
+      TBL=best_reciprocal_hit.out
+      FASTA=megahit_assembly_all.out.CGSout
+      BLOUT=QOR
 }
 
 
@@ -214,10 +218,12 @@ workflow trinity_assembly_flow () {
         QOR=blast_flow.out[1]
         ROQ=blast_flow_rev.out[1]
       }
-      best_reciprocal_hit(trinity_assembly_pe.out, ref_fa, QOR, ROQ )
+      best_reciprocal_hit(trinity_assembly_pe.out.CGSout, ref_fa, QOR, ROQ )
 
     emit:
-      best_reciprocal_hit.out
+      TBL=best_reciprocal_hit.out
+      FASTA=trinity_assembly_pe.out.CGSout
+      BLOUT=QOR
 }
 
 
@@ -255,6 +261,22 @@ workflow blast_flow_rev() {
     do_tblastx.out
 }
 
+
+workflow vizualise_results_flow() {
+    take:
+        pebam
+        sgbam
+        blasttbl
+        brh
+        
+    main:
+        coverage_plots(pebam, sgbam, blasttbl, brh)
+    emit:
+     ""
+
+}
+
+
 // // // // // // MAIN // // // // // //  
 
 workflow {
@@ -264,26 +286,56 @@ workflow {
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.sampletbl"
     
-    
+    // // Clean reads // //
+   
     init_samples()
     fastqc_onrawseqs(init_samples.out)
     reads_clean(init_samples.out)
     
-    KDB=Channel.from(params.kaijudbs)
+    // // Discard reads identified as nonviral // //
+   
+    //KDB=Channel.from(params.kaijudbs)
+    KDB=Channel.from("nr_euk")
     CLNR=reads_clean.out.merge()
     to_kaiju=KDB.combine(CLNR).merge()
-    reads_filter_celular(to_kaiju)
+    reads_filter_nonviral(to_kaiju)
     
-    generate_index_bowtie(params.amplicon_refseqs)
-    amplicon_sequences_align(generate_index_bowtie.out, reads_filter_celular.out)
-
+    // // Map reads on reference genomes fasta // //  (used to design the probes) 
+    
+    tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
+    generate_index_bowtie(tobowtie)
+    amplicon_sequences_align(generate_index_bowtie.out, reads_filter_nonviral.out)
+    
+    // // Assembly reads into contigs // //
+    
     if (params.assembler ==~ /(?i)MEGAHIT/){
-         megahit_assembly_flow(reads_filter_celular.out )
+         megahit_assembly_flow(reads_filter_nonviral.out )
+         CNFA=megahit_assembly_flow.out.FASTA.merge()
+         brhtbl=megahit_assembly_flow.out.TBL
+         Blastout=megahit_assembly_flow.out.BLOUT
     }else if (params.assembler =~ /(?i)TRINITY/ ){
-        trinity_assembly_flow(reads_filter_celular.out)
+         trinity_assembly_flow(reads_filter_nonviral.out)
+         CNFA=trinity_assembly_flow.out.FASTA.merge()
+         brhtbl=trinity_assembly_flow.out.TBL
+         Blastout=trinity_assembly_flow.out.BLOUT
     }
+    
+    // // Taxonomic classification of contigs // //
+    
+    KCDB=Channel.from("viruses", "rvdb", "nr_euk", "refseq", "capref")
+    to_kaiju_contigs=KCDB.combine(CNFA).merge()
+    kaiju_contigs(to_kaiju_contigs)
+    
+    // // Plot coverage by genome (reads and contigs) // //
+    
+    
+    vizualise_results_flow(
+                   amplicon_sequences_align.out.PE,
+                   amplicon_sequences_align.out.SG,
+                   Blastout,
+                   brhtbl)
+    
 
-    // workflow for coverage ploting (inputs will be: bowtie out and assembly out)
 }
 
 

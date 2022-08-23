@@ -1,15 +1,13 @@
-
-
 args <- commandArgs(TRUE);
 
-GFF.refs.dir  <- args[1];  # Directory where gff of regerence sequences are stored
-refs.coord.tbl <- args[2];  # tbl containing fields: ID,  START_POS,  END_POS
+GFF.refs.dir  <- args[1];
+refs.coord.tbl <- args[2];
 samp.id <- args[3];
-BOWTIEpe.filename <- args[4];  
+BOWTIEpe.filename <- args[4];
 BOWTIEsg.filename <- args[5];
-outplots.dir <- args[6];
-
-
+contigs.gff.filename <- args[6]
+id.to.name <- args[7]
+outplots.dir <- args[8];
 
 #GFF.refs.dir  <- "refseqs"; #args[4];
 #refs.coot.tbl <- "refseqs/refseqs_coordinates.tbl"
@@ -21,8 +19,6 @@ outplots.dir <- args[6];
 #   Xmax <- round_any(Xmax, 500, f = ceiling)
 #BOWTIEpe.seq <- "NC_002645"
 #BOWTIEsg.seq <- "NC_002645"
-
-
 
 #library(tidyverse)
 library(rtracklayer);
@@ -75,6 +71,19 @@ sg.bam <- readGAlignments(BOWTIEsg.filename, # SG
                         
                 # param=ScanBamParam(which=GRanges(BOWTIEsg.seq, IRanges(Xmin, Xmax))));
 
+#Contigs from gff:
+
+print(file.info(contigs.gff.filename)$size)
+ContigsFound=FALSE;
+if (file.info(contigs.gff.filename)$size > 0) {
+        contigs.txdb <- makeTxDbFromGFF(file=contigs.gff.filename,
+                                    format="gff3");
+        ContigsFound=TRUE;
+} #else {
+   #     contigs.txdb <- FALSE;
+#}
+
+
 #Get genomes to which there are maped reads
 pe.refs<-as.data.frame(table(seqnames(pe.bam)))
 sg.refs<-as.data.frame(table(seqnames(sg.bam)))
@@ -89,12 +98,21 @@ NA_plot <- function(xmax, ymax, message) {
                         xlab(NULL) +
                         xlim(0, xmax) +
                         ylim(0,ymax) +
+                        scale_x_continuous(expand=c(0,0)) +
                         theme(panel.border = element_rect(colour = "black", fill=NA, size=0.6)) 
                 return(theplot)
           }
 
+## Convert genomes ID to Human Readable name
+genomes_rel <- read.table(id.to.name, header=TRUE, sep="\t")
+colnames(genomes_rel)<-c("ID", "NM" )
+HRids<-genomes_rel$NM
+names(HRids)<-genomes_rel$ID
+HRids["UNC"]="UNC"
 
-for (rgn in reflst) {  ##REPENSAR, VAL LA PENA... mehhh
+# print(HRids)
+
+for (rgn in reflst) {  
     #Reference genome
         
         #filename
@@ -107,14 +125,14 @@ for (rgn in reflst) {  ##REPENSAR, VAL LA PENA... mehhh
             rgn <- rgn.id;
             GFF.filename  <- paste0(GFF.refs.dir, "/", rgn ,".gff")
         }
+        rgn.name <- gsub("_"," ",as.character(HRids[rgn]))
         
         txdb <- makeTxDbFromGFF(file=GFF.filename,
                             format="gff3");
                             
-        print(paste0("rgn: ", rgn, "  //  rgn.v: ", rgn.v, "  //  rgn.id: ", rgn.id))
+        print(paste0("rgn: ", rgn, "  //  rgn.v: ", rgn.v, "  //  rgn.id: ", rgn.id, " // species name: ", rgn.name))
         
         
-
         # TxDb object
         
         colors.genes <- hcl.colors(length(levels(as.factor(as.list(txdb)$transcripts$tx_id))), palette="Spectral")
@@ -170,12 +188,49 @@ for (rgn in reflst) {  ##REPENSAR, VAL LA PENA... mehhh
         }
         
     #Pending: Contigs
-    
+        
+        #plot
+        print("Ploting Assembled contigs")
+        print(ContigsFound)
+        ExistContigsPlot=F;
+        if ( ContigsFound) {
+                print(" --- AAA --- ")
+                if (any(contigs.txdb$user_seqlevels == rgn.v)) {
+                    print(" --- BBB --- ")
+                    colors.genes <- "lightseagreen" #hcl.colors(1, palette="Spectral");
+                    contigs <- autoplot(contigs.txdb, which=GRanges(rgn.v, IRanges(Xmin, Xmax)),
+                                names.expr = "", fill=colors.genes) +
+                                theme_bw() +
+                                theme(panel.border = element_blank(),
+                                    axis.text.y=element_blank(),
+                                    text = element_text(size = 10),
+                                    plot.title = element_text(size = 15)) +
+                                scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
+                  ExistContigsPlot=T;
+                }
+        } else {
+                print ("ELSEE") }
+        
+        print( ExistContigsPlot) 
+        if ( !(ExistContigsPlot)){
+                    print(" --- CCC --- ")
+                    contigs <- NA_plot( Xmax, 1, 'No contigs > 100nt assembled')
+        }
+        
+        
     #  Merge all plots
         print("Ready to merge the plots")
-        title=paste0( "Reads and amplicons coverage from sample ", samp.id, " onto ", rgn.v);
-        wholeplot <- tracks(CDS=refgen, PEcovg=pe.coverage, SEcovg=sg.coverage ,
-               heights = c(0.15, 0.3, 0.3), xlim = c(Xmin, Xmax), main=title) +
+        title=paste0( "Reads and amplicons coverage from sample ", 
+                      samp.id, " onto ", rgn.name, " (", rgn.v, ")");
+        wholeplot <- tracks(
+                        CDS=refgen,
+                        PEcovg=pe.coverage,
+                        SEcovg=sg.coverage,
+                        Assembly=contigs,
+                        heights = c(0.2, 0.2, 0.2, 0.1),
+                        xlim = c(Xmin, Xmax), 
+                        main=title
+                    ) +
                scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
     PNG.filename<- paste0(outplots.dir, "/Coverage_", samp.id, "_onto_", rgn.v, ".png") 
     #  Save plot

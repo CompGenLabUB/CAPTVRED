@@ -48,7 +48,7 @@ process bowtie_amplicons_alignment {
     
     output:
     
-      val "${odir}/${pe_root}.bowtie.sorted.bam",   emit: bamPE
+      val "${odir}/${pe_root}.bowtie.sorted.mapped.bam",   emit: bamPE
       
     script:
 
@@ -56,14 +56,12 @@ process bowtie_amplicons_alignment {
         //idir=params.clnfq_dir
         odir=params.ampaln_dir
 
-        pe_root=pe1.split('/')[-1].toString().replaceAll("_pe1.fastq.gz", "_pe")
+        pe_root=pe1.split('/')[-1].toString().replaceAll("_pe1.filtered.fastq.gz", "_pe")
 
-        
-        
         """
         
         bowtie2 --threads $params.NCPUS -q  -x ${idx_path} \
-                --local --sensitive-local  -N 1            \
+                --end-to-end --sensitive  -N 1            \
                 --met-file ${odir}/${pe_root}.metrics      \
                 -1 ${pe1} -2 ${pe2}        \
                 -S ${odir}/${pe_root}.bowtie.sam           \
@@ -95,7 +93,7 @@ process bowtie_amplicons_alignment_sg {
     
     output:
 
-      val "${odir}/${sgle_root}.bowtie.sorted.bam", emit: bamSG
+      val "${odir}/${sgle_root}.bowtie.sorted.mapped.bam", emit: bamSG
       
     script:
 
@@ -103,13 +101,13 @@ process bowtie_amplicons_alignment_sg {
         odir=params.ampaln_dir
         
         sgle_file=file("${sgle}")
-        sgle_root=sgle.split('/')[-1].toString().replaceAll("_sgl.fastq.gz", "_sg")
+        sgle_root=sgle.split('/')[-1].toString().replaceAll("_sgl.filtered.fastq.gz", "_sg")
         
         if( sgle_file.size() > 0 )
             
             """
             bowtie2 --threads $params.NCPUS -q  -x ${idx_path}   \
-                    --local --sensitive-local   -N 1             \
+                    --end-to-end --sensitive   -N 1             \
                      --met-file ${odir}/${sgle_root}.metrics     \
                     -U  ${sgle}                          \
                     -S ${odir}/${sgle_root}.bowtie.sam           \
