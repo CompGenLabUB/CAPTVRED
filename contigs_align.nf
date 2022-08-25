@@ -146,7 +146,7 @@ process best_reciprocal_hit {
         python2 ${BIND}/rbbh.py       \
             ${qor_blast}   ${q_fa}        \
             ${roq_blast}   ${r_fa}        \
-            1e-25    80                    \
+            1e-10    0                    \
           > ${out_brh}.rbbh.tbl    \
          2> ${out_brh}.rbbh.log;
         
