@@ -3,9 +3,9 @@ Analysis pipeline for the VIRWASTE viral metagenomics project.
 
 ## Run from cmdline:
 ```{.sh}
-source projectvars.sh
 nextflow $NXFDIR/main.nf -with-report $RPTDR/Nextflow_execution_report.html
 ```
+
 ### Optional parameters of the virwaste pipeline:
 ```{.sh}
 --assembler upper case string. Available options are MEGAHIT(default), TRINITY (time and resource consuming) and SPADES(?).
@@ -36,29 +36,26 @@ Nextflow Modules:
 ## Getting started:
 Before running the pipeline, file system must be prepared as follows:
 
-Virwaste:
+__FIRST TIME:__<br /> 
+__0.__ If you don't have nextflow fostware install it following the given instructions in its documentation (https://www.nextflow.io/docs/latest/getstarted.html). <br />
+__a.__ Create a project directory (Root directory). The pipeline and all run will be saved inside this folder.<br />
+__b.1.__ NO! Inside the root directory download/install the pipeline (i.e. folder can be named: virwaste).  ... description of how to do that.<br />
+__b.2.__  Inside the root directory create a directory with the run name ID (Run directory or base directory).<br />
 
- - nextflow.config 
- - main.nf\newline
- - rawfq_clean.nf
- - check_inputs.nf
-   
-RUN_XX:
+__FOR EACH RUN or EXPERIMENT:__<br /> 
 
-   - projectvars.sh  
-      modified with specific run parameters
-   - samples_definition.tbl
-      Tabular file with the following fields:  
-      "SAMPLE_ID	ILLUMINA_ID	TECHNOLOGY	PAIRED	SAMPLE_FACTOR	METHOD_FACTOR	DESCRIPTION"
-   - rawseqs_fastq 
-      Directory containing ".fastq.gz" files for all paired end samples
-   - refseqs
-      Directory containing a ".fasta.gz" of reference sequences used to design the library 
-      You may want to use a link to reference to the data directory in other location
-      Bowtie index for the aligning step will be created in the directory where the fasta file is located
-  
-
-Once $projectvars.sh$ is run, "reports", "cleanseqs" and  "amplicons_alignment" directories are automatically created.
+__c.1.__ Place samples_definition.tbl file in the run direcoty. It must be a tabular file containing sequencing aID and processing ID for each sample (see documentation for more info). Additional metadata fields can be added if you want.<br />
+__c.2.__ Place projectvars template in the run folder and add the variables $RDIR (root directory), $NXFDIR (nextflow directory), $BDIR (Run dierctory or base directory) and $RUNID (run identifier). It is recomended to rename this file as "projectvars.sh".<br />
+__d.__ Run projectvars.sh. (see documentation for more info)<br />
+```{.sh}
+source projectvars.sh
+```
+__e.__ Move or link) the raw fastq files to the "$RAWFQ" directory.<br />
+__f.__ Check the configuration file ($NXFDIR/nextflow.config) and, in case you are interested, change the parameters.<br />
+__g.__ Filesystem is ready to run the pipeline.<br />
+```{.sh}
+nextflow $NXFDIR/main.nf -with-report $RPTDR/Nextflow_execution_report.html
+```
 
 
 ### To take into consideration:
