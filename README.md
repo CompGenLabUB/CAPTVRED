@@ -39,24 +39,34 @@ Before running the pipeline, file system must be prepared as follows:
 __FIRST TIME:__<br /> 
 __0.__ If you don't have nextflow fostware install it following the given instructions in its documentation (https://www.nextflow.io/docs/latest/getstarted.html). <br />
 __a.__ Create a project directory (Root directory). The pipeline and all run will be saved inside this folder.<br />
-__b.1.__ NO! Inside the root directory download/install the pipeline (i.e. folder can be named: virwaste).  ... description of how to do that.<br />
-__b.2.__  Inside the root directory create a directory with the run name ID (Run directory or base directory).<br />
+__b.1.__ Inside the root directory download the repository of the pipeline (folder can be named: virwaste). <br />
+__b.2.__  Inside the root directory create a directory with the run name ID (Run directory or base directory). <br />
+__c.__ Prepare reference sequences (fasta file with all reference sequences and gff files for all genomes) and kaiju databases (see documentation for more info). <br />
 
 __FOR EACH RUN or EXPERIMENT:__<br /> 
 
-__c.1.__ Place samples_definition.tbl file in the run direcoty. It must be a tabular file containing sequencing aID and processing ID for each sample (see documentation for more info). Additional metadata fields can be added if you want.<br />
-__c.2.__ Place projectvars template in the run folder and add the variables $RDIR (root directory), $NXFDIR (nextflow directory), $BDIR (Run dierctory or base directory) and $RUNID (run identifier). It is recomended to rename this file as "projectvars.sh".<br />
-__d.__ Run projectvars.sh. (see documentation for more info)<br />
+__d.1.__ Place samples_definition.tbl file in the run direcoty. It must be a tabular file containing sequencing aID and processing ID for each sample (see documentation for more info). Additional metadata fields can be added if you want.<br />
+__d.2.__ Place projectvars template in the run folder and add the following variables: <br />
+-  $RDIR (path to the root directory)<br />
+-  $NXFDIR (path to the nextflow directory) <br /> 
+-  $BDIR (path to the run dierctory or base directory) <br />
+-  $RUNID (run identifier)<br />
+-  $AMPSQD (amplicon sequences fasta directory)<br />
+-  $AMPSQFA (amplicon sequences fasta filename)<br />
+-  $KAIDB (kaiju databases directory)<br />
+It is recomended to rename this file as "projectvars.sh".<br />
+
+__e.__ Run projectvars.sh. (see documentation for more info)<br />
 ```{.sh}
 source projectvars.sh
 ```
-__e.__ Move or link) the raw fastq files to the "$RAWFQ" directory.<br />
-__f.__ Check the configuration file ($NXFDIR/nextflow.config) and, in case you are interested, change the parameters.<br />
-__g.__ Filesystem is ready to run the pipeline.<br />
+__f.__ Move or link) the raw fastq files to the "$RAWFQ" directory.<br />
+__g.__ Check the configuration file ($NXFDIR/nextflow.config) and, in case you are interested, change the parameters.<br />
+__h.__ Filesystem is ready to run the pipeline.<br />
 ```{.sh}
 nextflow $NXFDIR/main.nf -with-report $RPTDR/Nextflow_execution_report.html
 ```
 
 
 ### To take into consideration:
-If assembly is performed using trinity and the prograam cannot assembly any contig the pipleni will ignore the programme fail, raise a warning and continue wwith the next file.
+If assembly is performed using trinity and the prograam cannot assembly any contig the pipleni will ignore the programme fail, raise a warning and continue with the next file.
