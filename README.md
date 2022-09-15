@@ -37,9 +37,9 @@ Nextflow Modules:
 Before running the pipeline, file system must be prepared as follows:
 
 __FIRST TIME:__<br /> 
-
+__0.__ If you don't have nextflow fostware install it following the given instructions in its documentation (https://www.nextflow.io/docs/latest/getstarted.html). <br />
 __a.__ Create a project directory (Root directory). The pipeline and all run will be saved inside this folder.<br />
-__b.1.__ Inside the root directory download/install the pipeline (i.e. folder can be named: virwaste).  ... description of how to do that.<br />
+__b.1.__ NO! Inside the root directory download/install the pipeline (i.e. folder can be named: virwaste).  ... description of how to do that.<br />
 __b.2.__  Inside the root directory create a directory with the run name ID (Run directory or base directory).<br />
 
 __FOR EACH RUN or EXPERIMENT:__<br /> 
