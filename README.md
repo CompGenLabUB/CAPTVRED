@@ -1,5 +1,5 @@
 # virwaste
-Analysis pipeline for the VIRWASTE viral metagenomics project.
+VIRWASTE PIPELINE is a pipeline designed to analyse viral NGS data obtained from targeted sequencing. More specifically, targeted sequencing with a set of probes designed based on a set of reference genomic sequences of interest. This pipeline provides a set of analysis for the viral identification and discovery through alignment, assembly and taxoniomic classification of the data. It is assumed that the proves were designed basedon the reference set  with the aim to find this sequences and other alike sequences.
 
 ## Run from cmdline:
 ```{.sh}
@@ -51,9 +51,10 @@ __d.2.__ Place projectvars template in the run folder and add the following vari
 -  $NXFDIR (path to the nextflow directory) <br /> 
 -  $BDIR (path to the run dierctory or base directory) <br />
 -  $RUNID (run identifier)<br />
--  $AMPSQD (amplicon sequences fasta directory)<br />
--  $AMPSQFA (amplicon sequences fasta filename)<br />
+-  $AMPSQD (reference sequences fasta directory)<br />
+-  $AMPSQFA (reference sequences fasta filename)<br />
 -  $KAIDB (kaiju databases directory)<br />
+-  $AMPGFFD (reference sequences gff)<br />
 It is recomended to rename this file as "projectvars.sh".<br />
 
 __e.__ Run projectvars.sh. (see documentation for more info)<br />
