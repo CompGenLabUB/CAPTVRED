@@ -12,27 +12,28 @@ process kaiju_contigs {
     
     script:
     
-    //samp_id=contigs_fa.split('/')[-1].replaceAll(".contigs+singletons.fa","")
     samp_id=contigs_fa.split('/')[-1].split('[.]')[0]
     odir="${params.taxdir}/kaiju/${samp_id}/contigs_taxon"
 
     """
          [ -d ${odir} ] || mkdir -vp ${odir}
-         kaiju -v -z ${task.cpus}                                    \
+         kaiju -v -z ${task.cpus}                                   \
                   -t  ${params.kaijuDBD}/${db_id}/nodes.dmp         \
                   -f ${params.kaijuDBD}/kaiju_db_${db_id}.fmi       \
                   -i  ${contigs_fa}                                 \
+                  -E 0.00001    -s 65 -e 1                            \
                   -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out;
                   
           kaiju-addTaxonNames -t ${params.kaijuDBD}/${db_id}/nodes.dmp   \
                 -n ${params.kaijuDBD}/${db_id}/names.dmp                 \
-                -r superkingdom,genus,species                            \
+                -r superkingdom,family,species                            \
                 -i ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out                 \
                 -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.names.out;
         
-        kaiju2table -t ${params.kaijuDBD}/${db_id}/nodes.dmp              \
-                    -n ${params.kaijuDBD}/${db_id}/names.dmp              \
-                    -r species                                            \
+        kaiju2table -t ${params.kaijuDBD}/${db_id}/nodes.dmp                          \
+                    -n ${params.kaijuDBD}/${db_id}/names.dmp                          \
+                    -r species                                                        \
+                    -l superkingdom,phylum,class,order,family,genus,species           \
                     -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.summary.tsv      \
                     ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out;
         
@@ -41,6 +42,10 @@ process kaiju_contigs {
                     -n ${params.kaijuDBD}/${db_id}/names.dmp           \
                     -i ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out           \
                     -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out.krona;
+        
+        ktImportText -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out.krona.html \
+                        ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out.krona
+      
         
     """
 
@@ -73,7 +78,7 @@ process kaiju_raw {
 
             kaiju-addTaxonNames -t ${params.kaijuDBD}/${db_id}/nodes.dmp   \
                 -n ${params.kaijuDBD}/${db_id}/names.dmp                   \
-                -r superkingdom,species                                    \
+                -r superkingdom,genus,species                              \
                 -i ${odir}/${samp_id}_pe.kaiju.${db_id}.out                \
                 -o ${odir}/${samp_id}_pe.kaiju.${db_id}.names.out;
             
@@ -94,7 +99,8 @@ process kaiju_raw {
            #summary table
              kaiju2table -t ${params.kaijuDBD}/${db_id}/nodes.dmp         \
                     -n ${params.kaijuDBD}/${db_id}/names.dmp              \
-                    -r superkingdom,phylum,class,order,family,genus,species   \
+                    -r species                                                        \
+                    -l superkingdom,phylum,class,order,family,genus,species           \
                     -o ${odir}/${samp_id}_all.kaiju.${db_id}.summary.tsv  \
                     ${odir}/${samp_id}_pe.kaiju.${db_id}.out              \
                     ${odir}/${samp_id}_sg.kaiju.${db_id}.out;
@@ -132,27 +138,27 @@ process discard_nonviral {
      val "${params.clnfq_dir}/${samp_id}_pe2.filtered.fastq.gz", emit: PE2out
      val "${params.clnfq_dir}/${samp_id}_sgl.filtered.fastq.gz", emit: SGLout
      
-     when:
-       txn_names_tbl =~ /nr_euk/
+     //when:
+       //txn_names_tbl =~ /nr_euk/
      
     script:
 
-     celids=txn_names_tbl.replaceAll(".names.out", ".nonviral.ids")
+     nvids=txn_names_tbl.replaceAll(".names.out", ".nonviral.ids")
      samp_id=txn_names_tbl.split('/')[-1].split('[.]')[0].replaceAll("_all", "")
      
         """
         awk ' (\$1 ~ /C/)  &&  !(\$8 ~ /Viruses|NA/) { print \$2}'    \
-          ${txn_names_tbl}   >  ${celids};
+          ${txn_names_tbl}   >  ${nvids};
 
-        seqkit grep --invert-match --pattern-file  ${celids}        \
+        seqkit grep --invert-match --pattern-file  ${nvids}        \
                     ${params.clnfq_dir}/${samp_id}_pe1.fastq.gz    |\
                     gzip -   > ${params.clnfq_dir}/${samp_id}_pe1.filtered.fastq.gz;
                     
-        seqkit grep --invert-match --pattern-file ${celids}         \
+        seqkit grep --invert-match --pattern-file ${nvids}         \
                     ${params.clnfq_dir}/${samp_id}_pe2.fastq.gz    |\
                     gzip -   > ${params.clnfq_dir}/${samp_id}_pe2.filtered.fastq.gz;
                     
-        seqkit grep --invert-match --pattern-file  ${celids}       \
+        seqkit grep --invert-match --pattern-file  ${nvids}       \
                     ${params.clnfq_dir}/${samp_id}_sgl.fastq.gz   |\
                     gzip -   > ${params.clnfq_dir}/${samp_id}_sgl.filtered.fastq.gz;
         """

@@ -11,6 +11,10 @@ export BIND="$NXFDIR/bin"
 # Run identifier:
 export RUNID="";
 
+# Samples suffix:
+export R1="_R1_001"
+export R2="_R2_001"
+
 # Directory with the data: samples_definition.tbl, rawseqs_fastq dir, ...
 export BDIR=""; #NEXTFLOW MUST BE RUN FROM THIS DIRECTORY
     #samples_definition.tbl must be placed in this folder.
@@ -48,13 +52,16 @@ mkdir -vp $ASSBLD/trinity
 export CBLASTD="$BDIR/contigs_blast";
 mkdir -vp $CBLASTD/blastn
 mkdir -vp $CBLASTD/tblastx
-o
+
 export TAXDIR="$BDIR/taxonomy";
 mkdir -vp $TAXDIR/kaiju
 
 export RPTD="$BDIR/reports";
 mkdir -vp $RPTD;
 mkdir -vp $RPTD/coverage_figures
+
+export LOGD="$BDIR/logs";
+mkdir -vp $LOGD
 #Do not modify!!
 
 

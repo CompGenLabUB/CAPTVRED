@@ -73,7 +73,7 @@ process bowtie_amplicons_alignment {
                        > ${odir}/${pe_root}.bowtie.sorted.bam;
         rm -vf ${odir}/${pe_root}.bowtie.bam;
         samtools index  ${odir}/${pe_root}.bowtie.sorted.bam;
-        samtools view -F2052 -f3 -h ${odir}/${pe_root}.bowtie.sorted.bam \
+        samtools view -F2052 -f3 -q ${params.alignMINQ} -h ${odir}/${pe_root}.bowtie.sorted.bam \
                     -o ${odir}/${pe_root}.bowtie.sorted.mapped.bam
         touch ${odir}/${pe_root}.ok
         
@@ -107,19 +107,19 @@ process bowtie_amplicons_alignment_sg {
             
             """
             bowtie2 --threads $params.NCPUS -q  -x ${idx_path}   \
-                    --end-to-end --sensitive   -N 1             \
-                     --met-file ${odir}/${sgle_root}.metrics     \
-                    -U  ${sgle}                          \
+                    --end-to-end --sensitive   -N 1              \
+                    --met-file ${odir}/${sgle_root}.metrics      \
+                    -U  ${sgle}                                  \
                     -S ${odir}/${sgle_root}.bowtie.sam           \
                     2> ${odir}/${sgle_root}.bowtie.log;
                     
-            samtools view -Sb -o ${odir}/${sgle_root}.bowtie.bam    \
+            samtools view -Sb  -o ${odir}/${sgle_root}.bowtie.bam    \
                           ${odir}/${sgle_root}.bowtie.sam;
             samtools sort ${odir}/${sgle_root}.bowtie.bam           \
                           > ${odir}/${sgle_root}.bowtie.sorted.bam;
             rm -vf ${odir}/${sgle_root}.bowtie.bam;
             samtools index  ${odir}/${sgle_root}.bowtie.sorted.bam;
-            samtools view -F2052 -h  ${odir}/${sgle_root}.bowtie.sorted.bam \
+            samtools view -F2052 -h -q ${params.alignMINQ} ${odir}/${sgle_root}.bowtie.sorted.bam \
                   -o ${odir}/${sgle_root}.bowtie.sorted.mapped.bam;
             touch ${odir}/${sgle_root}.ok
             """

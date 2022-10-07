@@ -6,46 +6,59 @@ process make_db_for_blast {
 
     output:
 
-        val "${out_db}"
+        val "${out_db}", emit: DB
+        val "${is_db}", emit: CTRL
 
-    script:
-        
+    exec:
         out_db=refseqs_fasta.toString().replaceAll(".fa.gz|.fa", "_blastdb")
         dblist=out_db.split('/')
         db_name=dblist[-1]
-        cdfile=[dblist[0..dblist.size()-2].join('/'), "blastdb_created_genome.cdate"].join('/')
-        cdfile2 = new File("$cdfile");
-        if( cdfile2.exists() ) {
-            """
-            cat ${cdfile} 1>&2;
-            
-            """
-            
-        } else {
-            if  (refseqs_fasta =~ /\.fa\.gz$/ ) 
+        println refseqs_fasta
+        fa_fl= new File("${refseqs_fasta}")
+        if( fa_fl.size() > 0 ) {
+            is_db=1
+            cdfile=[dblist[0..dblist.size()-2].join('/'), "blastdb_created_genome.cdate"].join('/')
+            cdfile2 = new File("$cdfile");
+            if( cdfile2.exists() ) {
                 """
-                 gunzip -c ${refseqs_fasta}                |\
-                    makeblastdb -in -  -dbtype nucl         \
-                                -title ${db_name}           \
-                                -out ${out_db}              \
-                              2> ${out_db}.log;
-                              
-                 date +"DB created on %Y/%m/%d %T %Z %s"    \
-                      > ${cdfile};
+                cat ${cdfile} 1>&2;
                 """
                 
-            if  (refseqs_fasta =~ /\.fa$/ ) 
-                """
-                 makeblastdb -in ${refseqs_fasta}  -dbtype nucl            \
-                             -title ${db_name}              \
-                             -out ${out_db} \
-                             2> ${out_db}.log;
-                                  
-                 date +"DB created on %Y/%m/%d %T %Z %s"       \
-                      > ${cdfile};
+            } else {
+
+                if  (refseqs_fasta =~ /\.fa\.gz$/ ) {
                     """
-            
-        }
+                     gunzip -c ${refseqs_fasta}                |\
+                        makeblastdb -in -  -dbtype nucl         \
+                                    -title ${db_name}           \
+                                    -out ${out_db}              \
+                                  2> ${out_db}.log;
+                                  
+                     date +"DB created on %Y/%m/%d %T %Z %s"    \
+                          > ${cdfile};
+                    """
+                
+                }
+                
+                if  (refseqs_fasta =~ /\.fa$/ ) {
+                    """
+                     makeblastdb -in ${refseqs_fasta}  -dbtype nucl    \
+                                 -title ${db_name}                     \
+                                 -out ${out_db}                        \
+                                 2> ${out_db}.log;
+                                      
+                     date +"DB created on %Y/%m/%d %T %Z %s"       \
+                          > ${cdfile};
+                    """
+                }
+           }
+    }else{
+     is_db=0
+     log_fl= new File("${out_db}.log")
+     log_fl.write "${refseqs_fasta} is empty... Cannot create a blastdb\n"  
+    
+    }
+
 }
 
 
@@ -62,7 +75,7 @@ process do_blastn {
 
        blast_q=query.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
        blast_r=db.toString().split('/')[-1]
-       blast_algn="${blast_q}_ON_${blast_r}.tbl"
+       blast_algn="${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
        blast_dir=params.contigs_blast_dir
        
        """
@@ -101,7 +114,7 @@ process do_tblastx {
 
        blast_q=query.toString().split('/')[-1].replaceAll(/.gz$/, "").replaceAll(/.fa$/, "")
        blast_r=db.toString().split('/')[-1]
-       blast_algn="${blast_q}_ON_${blast_r}.tblastx.tbl"
+       blast_algn="${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
        blast_dir=params.contigs_blast_dir
        
        """
@@ -136,22 +149,28 @@ process best_reciprocal_hit {
         val(roq_blast)  // reference onto query blast (whole path)
     
     output:
-        val "${out_brh}.blastn.rbbh.tbl"
+        val "${out_brh}.rbbh.tbl"
         
-    script:
+    exec:
     
     out_brh=qor_blast.replaceAll(/.tbl$/, "")
+    qor_fl= new File("${qor_blast}")
+    roq_fl= new File("${roq_blast}")
+    if( qor_fl.size() > 0 && roq_fl.size() > 0 ) {
+
+        """
+            python2 ${BIND}/rbbh.py       \
+                ${qor_blast}   ${q_fa}        \
+                ${roq_blast}   ${r_fa}        \
+                1e-10    0                    \
+              > ${out_brh}.rbbh.tbl    \
+             2> ${out_brh}.rbbh.log;
+        """
+    }else{
+        brh_fl= new File("${out_brh}.rbbh.tbl")
+        brh_fl.write ""
     
-    """
-        python2 ${BIND}/rbbh.py       \
-            ${qor_blast}   ${q_fa}        \
-            ${roq_blast}   ${r_fa}        \
-            1e-10    0                    \
-          > ${out_brh}.rbbh.tbl    \
-         2> ${out_brh}.rbbh.log;
-        
-         
-    """
+    }
 }
 
 
