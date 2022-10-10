@@ -94,7 +94,7 @@ process kaiju_raw {
            #summary table
              kaiju2table -t ${params.kaijuDBD}/${db_id}/nodes.dmp         \
                     -n ${params.kaijuDBD}/${db_id}/names.dmp              \
-                    -r superkingdom,phylum,class,order,family,genus,species   \
+                    -r species   \
                     -o ${odir}/${samp_id}_all.kaiju.${db_id}.summary.tsv  \
                     ${odir}/${samp_id}_pe.kaiju.${db_id}.out              \
                     ${odir}/${samp_id}_sg.kaiju.${db_id}.out;
