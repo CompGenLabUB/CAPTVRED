@@ -13,7 +13,6 @@ process make_db_for_blast {
         out_db=refseqs_fasta.toString().replaceAll(".fa.gz|.fa", "_blastdb")
         dblist=out_db.split('/')
         db_name=dblist[-1]
-        println refseqs_fasta
         fa_fl= new File("${refseqs_fasta}")
         if( fa_fl.size() > 0 ) {
             is_db=1

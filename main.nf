@@ -235,7 +235,6 @@ workflow blast_flow_rev() {
 
         make_db_for_blast(ref_fasta)
         if ( make_db_for_blast.out.CTRL.toString() == 1){
-            println "AAA"
             if (params.blast_approach ==~ /(?i)blastn/) {
                 do_blastn(query_fasta, make_db_for_blast.out.DB.toString())
                 outf=do_blastn.out
@@ -246,7 +245,6 @@ workflow blast_flow_rev() {
                 outf=do_tblastx.out
             }
         }else{
-            println "UUU"
             blast_q=query_fasta.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
             blast_r=ref_fasta.toString().split('/')[-1]
             outf="${params.contigs_blast_dir}/${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
@@ -310,7 +308,7 @@ workflow {
     
     if (params.assembler ==~ /(?i)MEGAHIT/){
          megahit_assembly_flow(reads_filter_nonviral.out )
-         CNFA=megahit_assembly_flow.out.FASTA.merge()
+         CNFA=megahit_assembly_flow.out.FASTA  //.merge()
          
          brhtbl=megahit_assembly_flow.out.TBL
          Blastout=megahit_assembly_flow.out.BLOUT
@@ -328,7 +326,7 @@ workflow {
     
     // KCDB=Channel.from("viruses", "rvdb", "nr_euk", "refseq", "capref")
     KCDB=Channel.from(params.kaijudbs)
-    to_kaiju_contigs=KCDB.combine(CNFA).merge()
+    to_kaiju_contigs=KCDB.combine(CNFA.merge()).merge()
     kaiju_contigs(to_kaiju_contigs)
     
     
