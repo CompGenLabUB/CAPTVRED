@@ -173,5 +173,30 @@ process best_reciprocal_hit {
 }
 
 
+process blast_sum_coverage {
+    input:
+        val(blastout)
+        val(allqids)
+        
+    output:
+        val("$blast_sumcov"), emit: TBL
+        val("$unaling_ids"),emit: UNIDS
+    exec:
+    blast_sumcov=blastout.replaceAll(".tbl",".coverage.tbl")
+    unaling_ids=allqids.replaceAll(".ids", ".unaligned.ids")
+    
+    """
+    ## Get summary of blast out coverage:
+    ${params.bindir}/coverage_blastshorttbl.pl \
+                                $blastout > $blast_sumcov
+                                
+    ## Get list of unclassified ids:
+    gawk 'BEGIN{ while(getline<ARGV[1]>0) G[\$1]=\$1; ARGV[1]=""; } 
+          \$2 in G {} else { F[\$1]++; } 
+          END{ for (f in F) print f; }
+          ' $blastout $allqids > $unaling_ids;
+    #grep -v  -f 
+    """
 
+}
 

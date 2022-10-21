@@ -6,7 +6,7 @@ process coverage_plots {
         val sgbam
         val blastout
         val brh
-        
+    
     //output? no cal
     
     script:
@@ -19,7 +19,7 @@ process coverage_plots {
     
     """
     bash ${params.bindir}/rbbh-blast2gff.sh  ${brh}   ${blastout}   ${gffblast}
-
+    
     
     Rscript ${params.bindir}/virwaste_coverage_figures.R         \
          ${rdir}          ${rdir}/refseqs_coordinates.tbl        \

@@ -5,8 +5,8 @@ include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp }
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
 include { megahit_assembly_all} from './reads_assembly.nf'
 include { trinity_assembly_sg; trinity_assembly_pe } from './reads_assembly.nf'
-include { make_db_for_blast; do_blastn; do_tblastx; best_reciprocal_hit } from './contigs_align.nf'
-include { kaiju_raw; discard_nonviral; kaiju_contigs } from './taxonomy.nf'
+include { make_db_for_blast; do_blastn; do_tblastx; best_reciprocal_hit; blast_sum_coverage } from './contigs_align.nf'
+include { kaiju_raw; discard_nonviral; kaiju_contigs; extract_ids; taxonid_to_fasta;  readid_to_fasta} from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
@@ -273,6 +273,47 @@ workflow vizualise_results_flow() {
 
 }
 
+workflow blast_unc_x_cl (){
+    take:
+        tax_names
+    
+    main:
+    extract_ids(tax_names)
+    extract_ids.out.CLT.view()
+    taxonid_to_fasta(extract_ids.out.CLT)
+    readid_to_fasta(extract_ids.out.UN)
+    
+    rfasta=new File(taxonid_to_fasta.out.REF.toString())
+    if (rfasta.size() > 0 ) {
+        make_db_for_blast(taxonid_to_fasta.out.REF)
+        do_blastn(taxonid_to_fasta.out.UNC, make_db_for_blast.out.DB)
+        blast_sum_coverage(do_blastn.out, extract_ids.out.UN )
+        blast_rpt=blast_sum_coverage.out.TBL
+        uncids=blast_sum_coverage.out.UNIDS
+    } else {
+        blast_rpt=""
+        uncids=extract_ids.out.UN
+    }
+    emit:
+      REP=blast_rpt
+      UN=uncids
+}
+
+workflow blast_unc_x_rvdb () {
+    take:
+        unaligned_ids
+    main:
+        
+        readid_to_fasta(unaligned_ids)
+        ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
+        do_blastn(readid_to_fasta.out, ref_database)
+        blast_sum_coverage(do_blastn.out, unaligned_ids )
+        blast_rpt=blast_sum_coverage.out.TBL
+        
+    emit:
+        REP=blast_rpt
+}
+
 
 // // // // // // MAIN // // // // // //  
 
@@ -283,69 +324,81 @@ workflow {
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.sampletbl"
     
-    // // Clean reads // //
+    // 1 // Clean reads // //
    
-    init_samples()
-    fastqc_onrawseqs(init_samples.out)
-    reads_clean(init_samples.out)
+        init_samples()
+        fastqc_onrawseqs(init_samples.out)
+        reads_clean(init_samples.out)
     
-    // // Discard reads identified as nonviral // //
+    // 2 // Discard reads identified as nonviral // //
    
-    //KDB=Channel.from(params.kaijudbs)
-    KDB=Channel.from(params.kaijuDBRAW)
-    CLNR=reads_clean.out.merge()
-    to_kaiju=KDB.combine(CLNR).merge()
-    reads_filter_nonviral(to_kaiju)
+        //KDB=Channel.from(params.kaijudbs)
+        KDB=Channel.from(params.kaijuDBRAW)
+        CLNR=reads_clean.out.merge()
+        to_kaiju=KDB.combine(CLNR).merge()
+        reads_filter_nonviral(to_kaiju)
+        
+    // 3 // Map reads on reference genomes fasta // //  (used to design the probes) 
     
-    // // Map reads on reference genomes fasta // //  (used to design the probes) 
+        tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
+        generate_index_bowtie(tobowtie)
+        amplicon_sequences_align(generate_index_bowtie.out, reads_filter_nonviral.out)
+        align_summary(amplicon_sequences_align.out.ALL)
     
-    tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
-    generate_index_bowtie(tobowtie)
-    amplicon_sequences_align(generate_index_bowtie.out, reads_filter_nonviral.out)
-    align_summary(amplicon_sequences_align.out.ALL)
+    // 4 // Assembly reads into contigs // //
     
-    // // Assembly reads into contigs // //
+        if (params.assembler ==~ /(?i)MEGAHIT/){
+             megahit_assembly_flow(reads_filter_nonviral.out )
+             CNFA=megahit_assembly_flow.out.FASTA  //.merge()
+             
+             brhtbl=megahit_assembly_flow.out.TBL
+             Blastout=megahit_assembly_flow.out.BLOUT
+             
+        }else if (params.assembler =~ /(?i)TRINITY/ ){
+             trinity_assembly_flow(reads_filter_nonviral.out)
+             CNFA=trinity_assembly_flow.out.FASTA
+             brhtbl=trinity_assembly_flow.out.TBL
+             Blastout=trinity_assembly_flow.out.BLOUT
+        }
     
-    if (params.assembler ==~ /(?i)MEGAHIT/){
-         megahit_assembly_flow(reads_filter_nonviral.out )
-         CNFA=megahit_assembly_flow.out.FASTA  //.merge()
-         
-         brhtbl=megahit_assembly_flow.out.TBL
-         Blastout=megahit_assembly_flow.out.BLOUT
-         
-    }else if (params.assembler =~ /(?i)TRINITY/ ){
-         trinity_assembly_flow(reads_filter_nonviral.out)
-         CNFA=trinity_assembly_flow.out.FASTA
-         brhtbl=trinity_assembly_flow.out.TBL
-         Blastout=trinity_assembly_flow.out.BLOUT
-    }
+    // 5 // Taxonomic classification of contigs // //
     
-    
-    
-    // // Taxonomic classification of contigs // //
-    
-    // KCDB=Channel.from("viruses", "rvdb", "nr_euk", "refseq", "capref")
-    KCDB=Channel.from(params.kaijudbs)
-    to_kaiju_contigs=KCDB.combine(CNFA.merge()).merge()
-    kaiju_contigs(to_kaiju_contigs)
+        // 5.1. // Protein-level classification (KAIJU)
+
+            KCDB=Channel.from(params.kaijudbs)
+            to_kaiju_contigs=KCDB.combine(CNFA.merge()).merge()
+            kaiju_contigs(to_kaiju_contigs)
+        
+        // 5.2. // Blast of unclass contigs into classified set. 
+        
+            taxon_outkaiju=kaiju_contigs.out.filter{ it.contains("rvdb")}
+            blast_unc_x_cl(taxon_outkaiju)     // Outputs blast report if exists OR empty channel in fothing were found
+        
+        // 5.3. // Blast of unclass contigs into classified set. 
+            blast_unc_x_rvdb(blast_unc_x_cl.out.UN) 
     
     
     // // Blast all contigs into database // //
     
-    ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
-    do_blastn(CNFA, ref_database)
+    //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
+    //do_blastn(CNFA, ref_database)
     
     
-    // // Plot coverage by genome (reads and contigs) // //
+    // 6 // Reporting results
     
-    
-    vizualise_results_flow(
-                   amplicon_sequences_align.out.PE,
-                   amplicon_sequences_align.out.SG,
-                   Blastout,
-                   brhtbl)
-    
-
+        // 6.1 // Plot coverage by genome (reads and contigs) // //
+        
+        vizualise_results_flow(
+                       amplicon_sequences_align.out.PE,
+                       amplicon_sequences_align.out.SG,
+                       Blastout,
+                       brhtbl)
+                       
+        // 6.2 // Taxonomy summary
+            // taxon_outkaiju  (*.rvdb.names.out file)
+            // blast_unc_x_cl.RPT
+            // blast_unc_x_cl.out.RPT
+            
 }
 
 
