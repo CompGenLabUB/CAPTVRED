@@ -2,6 +2,7 @@
 
 process kaiju_contigs {
     label 'limit_kaiju'
+    errorStrategy 'finish'
     
     input:
         tuple   val(db_id), val(contigs_fa)
@@ -13,7 +14,7 @@ process kaiju_contigs {
     script:
     
     samp_id=contigs_fa.split('/')[-1].split('[.]')[0]
-    odir="${params.taxdir}/kaiju/${samp_id}/contigs_taxon"
+    odir="${params.taxfastdir}/${samp_id}"
     wnames="${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.names.out"
     
    
@@ -24,9 +25,9 @@ process kaiju_contigs {
                   -t  ${params.kaijuDBD}/${db_id}/nodes.dmp         \
                   -f ${params.kaijuDBD}/kaiju_db_${db_id}.fmi       \
                   -i  ${contigs_fa}                                 \
-                  #-E 0.00001    -s 65 -e 1                            \
-                  -E 0.01    -s 65 -e 4                            \
-                  -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out;
+                  -E 0.001    -s 65 -e 2                          \
+                  -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out \
+                  2> ${params.logs_dir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out
           
           ## Add species names
           kaiju-addTaxonNames -t ${params.kaijuDBD}/${db_id}/nodes.dmp   \
@@ -52,7 +53,7 @@ process kaiju_contigs {
         
         ktImportText -o ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out.krona.html \
                         ${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out.krona
-         
+         echo "KAIJU $wnames " >> ${params.wdir}/kk.$samp_id;
     """
 
 }
@@ -63,24 +64,29 @@ process extract_ids () {
         val(wnames)
 
     output: 
-        val("$txn_cl"), emit: CLT
-        val("$outf_un"), emit: UN
+        // tuple  val("$txn_cl"), val("$outf_un"), val("$outf_cl")
+         val("$txn_cl"), emit: CLT
+         val("$outf_un"), emit: UNIDS
+         val("$outf_cl"), emit: CLIDS
         
     script:
         outf_cl=wnames.replaceAll(".names.out", ".classified.ids");  //IDs of classified contigs
         facl=outf_cl.replaceAll(".ids", ".fa");
         outf_un=wnames.replaceAll(".names.out", ".unclassified.ids"); //IDs of unclassified contigs
         txn_cl=wnames.replaceAll(".names.out", ".classified.taxon" );  //TaxonIDs of classified contigs
+        spid=wnames.toString().split('/')[-1].split('[.]')[0];
         """
+       
         ## Get id list of classified and unclassified reads:
-        awk 'BEGIN{FS="\t|;"} {if ((\$1 ~ /C/) && (\$8 ~ "Viruses") && !(\$(NF-1) ~ "NA" )) print \$2}'  $wnames > $outf_cl;
-        awk 'BEGIN{FS="\t|;"} {if ((\$1 ~ /C/ && \$(NF-1) ~ "NA") || \$1 ~ /U/ ) print \$2}'  $wnames > $outf_un;
+        awk 'BEGIN{FS="\\t|;"} {if (\$1 ~ /^C\$/ && \$8 ~ "Viruses" && \$(NF-1) !~ "NA") print \$2}'  $wnames > $outf_cl;
+        awk 'BEGIN{FS="\\t|;"} {if ((\$1 ~ /^C\$/ && (\$8 !~ "Viruses" || \$(NF-1) ~ "NA")) || \$1 ~ /^U\$/) print \$2}'  $wnames > $outf_un;
          
         #taxonids of classified
-        awk 'BEGIN{ FS="\t|;" }
+        awk 'BEGIN{ FS="\\t|;" }
              { if ((\$1 ~ /C/) && (\$8 ~ "Viruses") && !(\$(NF-1) ~ "NA" )) print \$3 }
             ' $wnames | sort -n | uniq > $txn_cl;
-
+        
+        echo "EXTRACTIDS $txn_cl   \n $outf_un  \n $outf_cl" >> ${params.wdir}/kk.$spid;
         """
 
 }
@@ -97,19 +103,25 @@ process taxonid_to_fasta{
         ref_fa=cl_txn.replaceAll(/.taxon$/, ".reference.fa")
         cl_refid=cl_txn.replaceAll(/.taxon$/, ".reference.fa.ids")
         sampid=cl_txn.split('/')[-1].split('[.]')[0]
-        DB_FA="refseqs/rvdb_nt/C-RVDBvCurrent.fasta.gz"
-        ids_tbl="refseqs/rvdb_nt/C-RVDB_genebank_to_taxon_half.ids"
+        odir="${params.taxfastdir}/${sampid}"
+        DB_FA="${params.blast_refseqs_dir}/C-RVDBvCurrent.fasta.gz"
+        ids_tbl="${params.blast_refseqs_dir}/C-RVDB_genebank_to_taxon.ids"
         
         """
-
+         echo "TAXONID TO FASTA $cl_txn   \n $ref_fa" > ${params.wdir}/kk.$sampid;
+        [ -d $odir ] || mkdir $odir;
         touch ${ref_fa};
-
-        if [ [ -s $DB_FA ] && [ -s cl_txn ] ]
+        if [[ -s $DB_FA  &&  -s $cl_txn ]];
         then 
-            ##obtain fasta of reference sequences for the found species (Classified set of contigs):
-           gawk 'BEGIN{ while(getline<ARGV[1]>0) G[\$1]=\$1; ARGV[1]=""; } \$2 in G { F[\$1]++; } END{ for (f in F) print f; }' $cl_txn $ids_tbl > $cl_refid;
+           
+           gawk 'BEGIN{ while(getline<ARGV[1]>0) G[\$1]=\$1; ARGV[1]=""; } \$2 in G { F[\$1]++; } END{ for (f in F) print f; }' $cl_txn $ids_tbl > $cl_refid  \
+                       2> ${params.logs_dir}/${sampid}.taxonid_to_fasta.gawk.log;
            seqkit grep -r -m 0 --pattern-file  ${cl_refid}        \
-                    ${DB_FA}  > ${ref_fa};
+                    ${DB_FA}  > ${ref_fa} 2> ${params.logs_dir}/${sampid}.taxonid_to_fasta.seqkit.log;
+        
+        else
+            echo " $DB_FA or $cl_txn is empty" >>  ${params.logs_dir}/${sampid}.taxonid_to_fasta.gawk.log;
+        
         fi
         
         """
@@ -119,26 +131,31 @@ process readid_to_fasta{
 
     input:
 
-        val(un_ids)
+        val(ids)
         
     output:
-        val("$un_fa"), emit: "UNC"
+        val("$fasta"), emit: "FA"
         
     script:
-        un_fa=un_ids.replaceAll(".ids", ".fa");
-        sampid=un_ids.split('/')[-1].split('[.]')[0]
-        CONTIGS_FA="${params.asbl_dir}/${params.assembler}/${sampid}/${sampid}.contigs+singletons.fa"
+        fasta=ids.replaceAll(".ids", ".fa");
+        sampid=ids.split('/')[-1].split('[.]')[0]
+        odir="${params.taxfastdir}/${sampid}"
+        CONTIGS_FA="${params.asbl_dir}/megahit/${sampid}/${sampid}.contigs+singletons.fa"
         
         """
+        echo "READID TO FASTA $ids   \n $fasta" >> ${params.wdir}/kk.$sampid;
+        [ -d $odir ] || mkdir $odir;
+        touch ${fasta};
 
-        touch ${un_fa};
-        if  [ [ -s $CONTIGS_FA ] && [ -s $un_ids ] ]
-        then 
-            ## obtain fasta of the "unclassified" set of contigs
+       ## obtain fasta of the "unclassified" set of contigs
               #seqkit 
-             seqkit grep --pattern-file  ${un_ids}        \
-                    ${CONTIGS_FA}  > ${un_fa};
-        fi
+        if [ -s $CONTIGS_FA ] && [ -s  $ids ]; then 
+             seqkit grep --pattern-file  ${ids}       \
+                    ${CONTIGS_FA}  > ${fasta}            \
+                    2> ${params.logs_dir}/seqkit_unclass.${sampid}.log;
+        else
+            touch ${fasta};
+        fi;
         
         """
 }
@@ -157,7 +174,7 @@ process kaiju_raw {
     script:
     
     samp_id=sgle.split('/')[-1].replaceAll("_sgl.fastq.gz", "")
-    odir="${params.taxdir}/kaiju/${samp_id}/reads_taxon"
+    odir="${params.taxdir}/reads_taxon/${samp_id}"
         
         """
             [ -e ${odir} ] ||  mkdir -vp ${odir};

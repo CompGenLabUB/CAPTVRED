@@ -47,7 +47,7 @@
 
 process megahit_assembly_all {
     
-    label 'megahit_crash'
+    
     
     input:
       val(pe1)
@@ -70,11 +70,12 @@ process megahit_assembly_all {
         megahit  -t ${params.NCPUS}  --presets meta-sensitive \
             -1 ${pe1} -2 ${pe2}  -r ${sgle}                   \
             --min-contig-len ${params.assemblyMINCONLEN}      \
-            --out-dir ${odir} --out-prefix ${sp_root}; 
+            --out-dir ${odir} --out-prefix ${sp_root}         \
+            2> ${params.logs_dir}/${sp_root}.megahit_assembly.log;
         
          cat  ${odir}/${sp_root}.contigs.fa  >  ${odir}/${sp_root}.contigs+singletons.fa;
         
-        if [-s ${odir}/${sp_root}.contigs.fa; then
+        if [ -s ${odir}/${sp_root}.contigs.fa ]; then
                  ## If at least 1 contig has been assembled align reads on the contigs.
           
                  bowtie2-build --threads $params.NCPUS    -f     \
@@ -88,10 +89,9 @@ process megahit_assembly_all {
                             -U  ${sgle}                          \
                             -S ${odir}/${sp_root}_se.bowtie_onto_contigs.sam           \
                             2> ${odir}/${sp_root}_se.bowtie_onto_contigs.log;
-
-                 awk 'NF > 4 || length(\$10) >= ${params.assemblyMINCONLEN}' ${odir}/${sp_root}_se.bowtie_onto_contigs.sam |\
-                   samtools fasta -f4 - >>  ${odir}/${sp_root}.contigs+singletons.fa;
                 
+                samtools fasta -f4  ${odir}/${sp_root}_se.bowtie_onto_contigs.sam  |\
+                    seqkit seq -m ${params.assemblyMINCONLEN} >> ${odir}/${sp_root}.contigs+singletons.fa;
                 
                  bowtie2 --threads $params.NCPUS -q  -x ${odir}/${sp_root}_index     \
                          --end-to-end --sensitive   -N 1                             \
@@ -100,8 +100,8 @@ process megahit_assembly_all {
                          -S ${odir}/${sp_root}_pe.bowtie_onto_contigs.sam            \
                          2> ${odir}/${sp_root}_pe.bowtie_onto_contigs.log;
                   
-                  awk 'NF > 4 || length(\$10) >= ${params.assemblyMINCONLEN}' ${odir}/${sp_root}_pe.bowtie_onto_contigs.sam |\
-                   samtools fasta -f4 - >>  ${odir}/${sp_root}.contigs+singletons.fa;
+                  samtools fasta -f4  ${odir}/${sp_root}_pe.bowtie_onto_contigs.sam  |\
+                   seqkit seq -m ${params.assemblyMINCONLEN} >> ${odir}/${sp_root}.contigs+singletons.fa;
         else
            ## if no contigs obtained -> keep al reads > MinimumContigsLength nt
             for fl in $pe1 $pe2 $sgle; do

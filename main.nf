@@ -5,9 +5,10 @@ include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp }
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
 include { megahit_assembly_all} from './reads_assembly.nf'
 include { trinity_assembly_sg; trinity_assembly_pe } from './reads_assembly.nf'
-include { make_db_for_blast; do_blastn; do_tblastx; best_reciprocal_hit; blast_sum_coverage } from './contigs_align.nf'
+include { make_db_for_blast; do_blastn;  do_blast_kaiju; do_tblastx; best_reciprocal_hit; merge_blast_outs; blast_sum_coverage } from './contigs_align.nf'
 include { kaiju_raw; discard_nonviral; kaiju_contigs; extract_ids; taxonid_to_fasta;  readid_to_fasta} from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
+include { handle_contamination_pr } from './contamination.nf'
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
 SamplesDef.eachLine {
@@ -27,6 +28,10 @@ log.info """\
  RUN     : ${params.runID}
  Samples : ${samplesMap}
  SysInfo : ${workflow.userName} SID=${workflow.sessionId} NCPUs=${params.NCPUS} GITcid=${workflow.commitId}
+ =======================================
+ Parameters 
+ ---------------------------------------
+    Minimum Contigs Length : ${params.assemblyMINCONLEN}
  =======================================
  """
 
@@ -201,62 +206,52 @@ workflow trinity_assembly_flow () {
 }
 
 
-workflow blast_flow() {
-
-   take:
-    ref_fasta
-    query_fasta
+//workflow blast_flow() {
+//   take:
+//    ref_fasta
+//    query_fasta
      
-   main:
-        make_db_for_blast( ref_fasta) 
-        if (params.blast_approach ==~ /(?i)blastn/) {
-            do_blastn(query_fasta, make_db_for_blast.out.DB)
-            outf=do_blastn.out
-        }
+//   main:
+//        make_db_for_blast( ref_fasta, "FALSE") 
+//        if (params.blast_approach ==~ /(?i)blastn/) {
+//            do_blastn(query_fasta, make_db_for_blast.out.DB, params.taxslowdir)
+//            outf=do_blastn.out
+//        }
         
-        if (params.blast_approach ==~ /(?i)tblastx/) {
-            do_tblastx(query_fasta, make_db_for_blast.out.DB)
-            outf=do_tblastx.out
-        }
+//        if (params.blast_approach ==~ /(?i)tblastx/) {
+//            do_tblastx(query_fasta, make_db_for_blast.out.DB)
+//            outf=do_tblastx.out
+//        }
+//  emit:
+//    outf
+//}
 
-  emit:
-    outf
-    
-}
-
-workflow blast_flow_rev() {
-
-   take:
-     ref_fasta
-     query_fasta
-
-
-   main:
-
-        make_db_for_blast(ref_fasta)
-        if ( make_db_for_blast.out.CTRL.toString() == 1){
-            if (params.blast_approach ==~ /(?i)blastn/) {
-                do_blastn(query_fasta, make_db_for_blast.out.DB.toString())
-                outf=do_blastn.out
-            }
-            
-            if (params.blast_approach ==~ /(?i)tblastx/) {
-                do_tblastx(query_fasta, make_db_for_blast.out.DB)
-                outf=do_tblastx.out
-            }
-        }else{
-            blast_q=query_fasta.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
-            blast_r=ref_fasta.toString().split('/')[-1]
-            outf="${params.contigs_blast_dir}/${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
-            write_out= new File("${outf}")
-            write_out.write ""  
-            
-        }
-    
-    
-  emit:
-    outf
-}
+//workflow blast_flow_rev() {
+//   take:
+//     ref_fasta
+//     query_fasta
+//   main:
+//        make_db_for_blast(ref_fasta, "FALSE")
+//        if ( make_db_for_blast.out.CTRL.toString() == 1){
+//            if (params.blast_approach ==~ /(?i)blastn/) {
+//                do_blastn(query_fasta, make_db_for_blast.out.DB.toString(), params.taxfastdir)
+//                outf=do_blastn.out
+//            }
+//            
+//            if (params.blast_approach ==~ /(?i)tblastx/) {
+//                do_tblastx(query_fasta, make_db_for_blast.out.DB)
+//                outf=do_tblastx.out
+//            }
+//        }else{
+//            blast_q=query_fasta.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
+//            blast_r=ref_fasta.toString().split('/')[-1]
+//            outf="${params.contigs_blast_dir}/${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
+//            write_out= new File("${outf}")
+//            write_out.write ""  
+//        }
+//    emit:
+//    outf
+//}
 
 
 workflow vizualise_results_flow() {
@@ -273,47 +268,157 @@ workflow vizualise_results_flow() {
 
 }
 
-workflow blast_unc_x_cl (){
-    take:
-        tax_names
-    
-    main:
-    extract_ids(tax_names)
-    extract_ids.out.CLT.view()
-    taxonid_to_fasta(extract_ids.out.CLT)
-    readid_to_fasta(extract_ids.out.UN)
-    
-    rfasta=new File(taxonid_to_fasta.out.REF.toString())
-    if (rfasta.size() > 0 ) {
-        make_db_for_blast(taxonid_to_fasta.out.REF)
-        do_blastn(taxonid_to_fasta.out.UNC, make_db_for_blast.out.DB)
-        blast_sum_coverage(do_blastn.out, extract_ids.out.UN )
-        blast_rpt=blast_sum_coverage.out.TBL
-        uncids=blast_sum_coverage.out.UNIDS
-    } else {
-        blast_rpt=""
-        uncids=extract_ids.out.UN
-    }
-    emit:
-      REP=blast_rpt
-      UN=uncids
-}
+//workflow blast_unc_x_cl (){//
+//    take:
+//        tax_names
+//    
+//    main:
+//    extract_ids(tax_names)
+//    // extract_ids.out.CLT.view()
+//    taxonid_to_fasta(extract_ids.out.CLT)
+//    readid_to_fasta(extract_ids.out.UN)
+//    rfasta=new File(taxonid_to_fasta.out.REF.toString())
+//    if (rfasta.size() > 0 ) {
+//        make_db_for_blast(taxonid_to_fasta.out.REF)
+//        do_blastn(readid_to_fasta.out.UNC, make_db_for_blast.out.DB)
+//        blast_sum_coverage(do_blastn.out, extract_ids.out.UN )
+//        blast_rpt=blast_sum_coverage.out.TBL
+//        uncids=blast_sum_coverage.out.UNIDS
+//     } else {
+//        blast_rpt=""
+//        uncids=extract_ids.out.UN
+//     }
+//    emit:
+//      REP=blast_rpt
+//      UN=uncids
+// }
 
-workflow blast_unc_x_rvdb () {
+//workflow blast_unc_x_rvdb () {
+//    take:
+//        unaligned_ids
+//    main:
+//        
+//        readid_to_fasta(unaligned_ids)
+//        ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
+//        do_blastn(readid_to_fasta.out, ref_database)
+//        blast_sum_coverage(do_blastn.out, unaligned_ids )
+//        blast_rpt=blast_sum_coverage.out.TBL
+//        
+//    emit:
+//        REP=blast_rpt
+//}
+
+
+workflow direct_blast () {
     take:
-        unaligned_ids
+        ref_fasta
+        all_contigs
     main:
         
-        readid_to_fasta(unaligned_ids)
-        ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
-        do_blastn(readid_to_fasta.out, ref_database)
-        blast_sum_coverage(do_blastn.out, unaligned_ids )
+        //readid_to_fasta(unaligned_ids)
+        //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
+
+        make_db_for_blast( ref_fasta, "FALSE") 
+        do_blastn(all_contigs, make_db_for_blast.out.DB, params.taxslowdir)
+        
+        if (params.handle_contamination == true ) {
+            handle_contamination_pr( params.cids, 
+                                     params.cfaa, 
+                                     do_blastn.out,
+                                     all_contigs )
+                                     
+            blastOut=handle_contamination_pr.out
+        } else {
+        
+            blastOut=do_blastn.out
+        }
+        
+        blast_sum_coverage(blastOut, "F", "F" )
         blast_rpt=blast_sum_coverage.out.TBL
         
     emit:
         REP=blast_rpt
 }
 
+workflow unc_contigs_blast (){
+    take:
+        uncids
+    
+    main:
+        sp=uncids.toString().split('/')[-1].split('[.]')[0]
+
+        // Queries fasta:
+        readid_to_fasta(uncids)
+        
+        // Reference fasta:
+        ref_fa="${params.blast_refseqs_dir}/${params.blast_ref_db_name}";
+             
+        // Blast and output processing:
+            
+        make_db_for_blast(ref_fa, "FALSE")
+        //  make_db_for_blast.out.DB.view()
+        do_blastn(readid_to_fasta.out.FA, make_db_for_blast.out.DB, params.taxfastdir)
+       // blast_sum_coverage(do_blastn.out, uncids )
+       // blast_rpt=blast_sum_coverage.out.TBL
+       // stillunc=blast_sum_coverage.out.UNIDS
+       
+    emit:
+          SP=sp
+          BLOUT=do_blastn.out
+         // tuple sp, val(do_blastn.out)
+         
+}
+
+workflow class_contigs_blast (){
+    take:
+        clids
+        taxids
+        
+    main:
+       // sp=clids.toString().split('/')[-1].split('[.]')[0]
+        
+        
+            // Queries fasta:
+            readid_to_fasta(clids)
+            
+            // refseqs fasta:
+            taxonid_to_fasta(taxids)
+            ref_fa=taxonid_to_fasta.out.REF
+            
+            // Blast and output processing:
+            
+            make_db_for_blast(ref_fa, "TRUE")
+            do_blast_kaiju(readid_to_fasta.out.FA, params.taxfastdir, make_db_for_blast.out.DB)
+
+    emit:
+        BLOUT=do_blast_kaiju.out
+
+}
+
+workflow all_contigs_blast (){
+    take:
+      kaijuout
+        
+    main:
+        
+            extract_ids(kaijuout)
+            
+           // a. // Blast of unclass contigs into reference db. 
+                unc_contigs_blast(extract_ids.out.UNIDS)
+                
+           // b. // Blast of class contigs into reference sequences.
+                class_contigs_blast(extract_ids.out.CLIDS, extract_ids.out.CLT)
+                
+           // c. // Summarize results
+                merge_blast_outs(class_contigs_blast.out.BLOUT, unc_contigs_blast.out.BLOUT )
+                merge_blast_outs.out.BALL.view()
+                blast_sum_coverage(merge_blast_outs.out.BALL, extract_ids.out.CLIDS, extract_ids.out.UNIDS)
+
+    
+    emit:
+        ""
+
+}
 
 // // // // // // MAIN // // // // // //  
 
@@ -348,51 +453,62 @@ workflow {
     // 4 // Assembly reads into contigs // //
     
         if (params.assembler ==~ /(?i)MEGAHIT/){
-             megahit_assembly_flow(reads_filter_nonviral.out )
-             CNFA=megahit_assembly_flow.out.FASTA  //.merge()
+             megahit_assembly_all(reads_filter_nonviral.out)
+             CNFA=megahit_assembly_all.out.CGSout
+             //megahit_assembly_flow(reads_filter_nonviral.out )
+             //CNFA=megahit_assembly_flow.out.FASTA  //.merge()
              
-             brhtbl=megahit_assembly_flow.out.TBL
-             Blastout=megahit_assembly_flow.out.BLOUT
+             //brhtbl=megahit_assembly_flow.out.TBL
+             //Blastout=megahit_assembly_flow.out.BLOUT
              
-        }else if (params.assembler =~ /(?i)TRINITY/ ){
-             trinity_assembly_flow(reads_filter_nonviral.out)
-             CNFA=trinity_assembly_flow.out.FASTA
-             brhtbl=trinity_assembly_flow.out.TBL
-             Blastout=trinity_assembly_flow.out.BLOUT
+        }else if (params.assembler ==~ /(?i)TRINITY/ ){
+            // trinity_assembly_flow(reads_filter_nonviral.out)
+            // CNFA=trinity_assembly_flow.out.FASTA
+            // brhtbl=trinity_assembly_flow.out.TBL
+            // Blastout=trinity_assembly_flow.out.BLOUT
         }
     
     // 5 // Taxonomic classification of contigs // //
-    
-        // 5.1. // Protein-level classification (KAIJU)
-
+        
+        if (params.taxonfast == true ) {
+            // 5.1. FAST APPROACH// 
+              // 5.1.1. Protein-level classification (KAIJU) //
             KCDB=Channel.from(params.kaijudbs)
             to_kaiju_contigs=KCDB.combine(CNFA.merge()).merge()
             kaiju_contigs(to_kaiju_contigs)
-        
-        // 5.2. // Blast of unclass contigs into classified set. 
-        
-            taxon_outkaiju=kaiju_contigs.out.filter{ it.contains("rvdb")}
-            blast_unc_x_cl(taxon_outkaiju)     // Outputs blast report if exists OR empty channel in fothing were found
-        
-        // 5.3. // Blast of unclass contigs into classified set. 
-            blast_unc_x_rvdb(blast_unc_x_cl.out.UN) 
-    
-    
-    // // Blast all contigs into database // //
-    
-    //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
-    //do_blastn(CNFA, ref_database)
-    
+            kaiout=kaiju_contigs.out.filter{it.contains(params.blastfastdb)}.flatten()
+            kaiout.view()
+            all_contigs_blast(kaiout)
+            
+            
+        //    kaiout2=kaiju_contigs.out.buffer{it.contains(params.blastfastdb)}
+        //    all_contigs_blast(kaiout)
+            
+       //     kaiju_contigs.out.branch{ b1: it.contains(params.blastfastdb) }
+
+          
+        }
+         
+         if (params.taxonslow == true ){
+            // 5.2. SLOW APPROACH// 
+                // 5.2.1 Directly blast into database //
+            ref_fa="${params.blast_refseqs_dir}/${params.blast_ref_db_name}";
+            // blast_flow( ref_fa, CNFA.merge())
+
+            // direct_blast(ref_fa, CNFA.merge())
+            direct_blast(ref_fa, CNFA)
+         }
+
     
     // 6 // Reporting results
     
         // 6.1 // Plot coverage by genome (reads and contigs) // //
         
-        vizualise_results_flow(
-                       amplicon_sequences_align.out.PE,
-                       amplicon_sequences_align.out.SG,
-                       Blastout,
-                       brhtbl)
+   //     vizualise_results_flow(
+   //                    amplicon_sequences_align.out.PE,
+   //                    amplicon_sequences_align.out.SG,
+   //                    Blastout,
+   //                    brhtbl)
                        
         // 6.2 // Taxonomy summary
             // taxon_outkaiju  (*.rvdb.names.out file)
@@ -401,7 +517,12 @@ workflow {
             
 }
 
-
 workflow.onComplete {
 	log.info ( workflow.success ? "\nDone! Open the reports in your browser...\n" : "Oops .. something went wrong: ${workflow.errorMessage}" )
 }
+
+///// DISCARDED //////
+ // 5.2. // Blast of unclass contigs into classified set. 
+        
+       // taxon_outkaiju=kaiju_contigs.out.filter{ it.contains("rvdb")}
+       // blast_unc_x_cl(taxon_outkaiju)     // Outputs blast report if exists OR empty channel in nothing were found

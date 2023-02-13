@@ -1,12 +1,6 @@
-##
-### Project paths
+## 
 
-# Base "root" dir
-export RDIR="";
-
-# directory where to find nextflow scripts and config files.
-export NXFDIR=""; 
-export BIND="$NXFDIR/bin"
+  #####  RUN INFORMATION  #####
 
 # Run identifier:
 export RUNID="";
@@ -15,23 +9,39 @@ export RUNID="";
 export R1="_R1_001"
 export R2="_R2_001"
 
+  ##### PROJECT PATHS AND FILESYSTEM #####
+
+# Base "root" dir
+export RDIR="";
+
+# directory where to find nextflow scripts and config files.
+export NXFDIR=""; 
+export BIND="$NXFDIR/bin"
+
 # Directory with the data: samples_definition.tbl, rawseqs_fastq dir, ...
 export BDIR=""; #NEXTFLOW MUST BE RUN FROM THIS DIRECTORY
     #samples_definition.tbl must be placed in this folder.
     #projectvars.sh must be placed in this folder
 
 #Reference sequences and databases:
-  #directory that contains the fasta file of refseqs.
-export AMPSQD="";
-  #Name of the compressed fasta file that contians the sequences of all amplicons used to design the probes.
-export AMPSQFA="";
+export BDBD="" #Blast ref database directory
+export AMPSQD=""; #directory that contains the fasta file of refseqs.
+export AMPSQFA=""; #Name of the compressed fasta file that contians the sequences of all amplicons used to design the probes.
+export AMPSQINFO="";
+export AMPGFFD=""; #directory that contains the gff file of refseqs.
+export KAIDBD="";  #Directory where the kaiju databases are installed
 
-  #directory that contains the gff file of refseqs.
-export AMPGFFD="";
 
-  #Directory where the kaiju databases are installed
-export KAIDBD="";
+   #####  OPTIONS AND VARIABLES  #####
+# Computation:
+export NCPUS=32
 
+# Assembly:
+export minconlen=100;   #Minimum contigs length
+
+# Handle potential contamination:
+contamin_ids=""; #NCBI identifiers of the refseqs of the potential contaminant sequence.
+contamin_faa="";  #Protein fasta file of the potentially contaminant sequence.
 
 # Filesystem required by workflow:
 #Do not modify!!
