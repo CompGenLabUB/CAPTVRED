@@ -1,11 +1,11 @@
 #! /usr/bin/env nextflow
 
-include { bbduk_clean } from './rawfq_clean.nf'
+include { bbduk_clean; samps_idtranslate } from './rawfq_clean.nf'
 include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
 include { megahit_assembly_all} from './reads_assembly.nf'
 include { trinity_assembly_sg; trinity_assembly_pe } from './reads_assembly.nf'
-include { make_db_for_blast; do_blastn;  do_blast_kaiju; do_tblastx; best_reciprocal_hit; merge_blast_outs; blast_sum_coverage } from './contigs_align.nf'
+include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn;  do_blast_kaiju; do_tblastx; best_reciprocal_hit; merge_blast_outs; blast_sum_coverage; getfas_for_cor } from './contigs_align.nf'
 include { kaiju_raw; discard_nonviral; kaiju_contigs; extract_ids; taxonid_to_fasta;  readid_to_fasta} from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
 include { handle_contamination_pr } from './contamination.nf'
@@ -72,16 +72,56 @@ workflow reads_clean() {
          def newsamp=["$params.rawfq_dir/$illuminaID", "$params.clnfq_dir/$sampleID"]
          paths_list << newsamp
     }
- 
-    bbduk_clean(x, Channel.from(paths_list)) 
+    
+    
+    if (params.trim_adapters == true ) {
+       bbduk_clean(x, Channel.from(paths_list)) 
+       fastQC( bbduk_clean.out.mix() ) | collect | multiQC_clean
+       out1=bbduk_clean.out.outPE1
+       out2=bbduk_clean.out.outPE2
+       outS=bbduk_clean.out.outSGL
+    } else {
+       samps_idtranslate(x, Channel.from(paths_list))
+       out1=samps_idtranslate.out.outPE1
+       out2=samps_idtranslate.out.outPE2
+       outS=samps_idtranslate.out.outSGL
+    }
+    
+  emit:
+   PE1=out1
+   PE2=out2
+   SGL=outS
 
-    fastQC( bbduk_clean.out.mix() ) | collect | multiQC_clean
+}
+
+workflow idtranslate() {
+
+  take:
+
+    x
+
+  main:
+    
+    
+    def paths_list=[]
+         //paths_list is a LoL: where first item is the raw fastq root 
+         //for each sample and the second one is the new root for the cleanseqs.
+    def thysamples = samplesMap
+    thysamples.each { sampleID, illuminaID ->
+         def newsamp=["$params.rawfq_dir/$illuminaID", "$params.clnfq_dir/$sampleID"]
+         paths_list << newsamp
+    }
+    
+    samps_idtranslate(x, Channel.from(paths_list))
+  //  bbduk_clean(x, Channel.from(paths_list)) 
+
+  //  fastQC( bbduk_clean.out.mix() ) | collect | multiQC_clean
 
     
   emit:
-   PE1=bbduk_clean.out.outPE1
-   PE2=bbduk_clean.out.outPE2
-   SGL=bbduk_clean.out.outSGL
+   PE1=samps_idtranslate.out.outPE1
+   PE2=samps_idtranslate.out.outPE2
+   SGL=samps_idtranslate.out.outSGL
 
 }
 
@@ -324,20 +364,21 @@ workflow direct_blast () {
         if (params.handle_contamination == true ) {
             handle_contamination_pr( params.cids, 
                                      params.cfaa, 
-                                     do_blastn.out,
-                                     all_contigs )
+                                     do_blastn.out.OUT,
+                                     do_blastn.out.CONTIGS )
                                      
             blastOut=handle_contamination_pr.out
         } else {
         
-            blastOut=do_blastn.out
+            blastOut=do_blastn.out.OUT
         }
         
         blast_sum_coverage(blastOut, "F", "F" )
-        blast_rpt=blast_sum_coverage.out.TBL
+        blast_byread=blast_sum_coverage.out.BYR
         
     emit:
-        REP=blast_rpt
+        REP=blast_byread
+        CFA=all_contigs
 }
 
 workflow unc_contigs_blast (){
@@ -420,6 +461,48 @@ workflow all_contigs_blast (){
 
 }
 
+workflow coverage_onrefseqs() {
+    
+    take:
+        contigs_fa
+        assign_byr
+    main:
+   //     def txns_map=[:]
+   //     RefSqsDef = file("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}")
+   //     RefSqsDef.eachLine {
+   //         line -> {
+   //             def rf = line.split('\t')
+   //             // ignore lines stating with "#"
+   //             if (!rf[0].startsWith("#")) {
+   //                if (txns_map.containsKey(rf[2])) {
+   //                    txns_map[rf[2]].add(rf[4])
+   //                } else {
+   //                     txns_map.(rf[2]) = []
+   //                     txns_map[rf[2]].add(rf[4])
+   //                   
+   //                }
+   //             }
+   //         }
+   //     }
+   
+    //  index_refs("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}")
+    //  index_seqs(contigs_fa)
+      
+      getfas_for_cor("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
+                     "${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}",
+                     contigs_fa,
+                     assign_byr,
+                     params.bl_suffix
+                     )
+     //coverage + merge
+               
+     // Plots de coverage
+               
+    emit:
+     ""
+
+}
+
 // // // // // // MAIN // // // // // //  
 
 workflow {
@@ -433,8 +516,11 @@ workflow {
    
         init_samples()
         fastqc_onrawseqs(init_samples.out)
-        reads_clean(init_samples.out)
-    
+   //      if (params.trim_adapters == true ) {
+            reads_clean(init_samples.out)
+    //     } else {
+    //       idtranslate(init_samples.out)
+    //     }
     // 2 // Discard reads identified as nonviral // //
    
         //KDB=Channel.from(params.kaijudbs)
@@ -448,7 +534,7 @@ workflow {
         tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
         generate_index_bowtie(tobowtie)
         amplicon_sequences_align(generate_index_bowtie.out, reads_filter_nonviral.out)
-        align_summary(amplicon_sequences_align.out.ALL)
+   //     align_summary(amplicon_sequences_align.out.ALL)
     
     // 4 // Assembly reads into contigs // //
     
@@ -497,6 +583,9 @@ workflow {
 
             // direct_blast(ref_fa, CNFA.merge())
             direct_blast(ref_fa, CNFA)
+            coverage_onrefseqs(direct_blast.out.CFA, 
+                               direct_blast.out.REP
+                              )
          }
 
     

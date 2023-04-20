@@ -64,7 +64,10 @@ mkdir -vp $CBLASTD/blastn
 mkdir -vp $CBLASTD/tblastx
 
 export TAXDIR="$BDIR/taxonomy";
-mkdir -vp $TAXDIR/kaiju
+#mkdir -vp $TAXDIR/kaiju
+mkdir -vp $TAXDIR/reads_taxon
+mkdir -vp $TAXDIR/contigs_taxon/kaiju+blast
+mkdir -vp $TAXDIR/contigs_taxon/blast
 
 export RPTD="$BDIR/reports";
 mkdir -vp $RPTD;
