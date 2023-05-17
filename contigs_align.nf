@@ -12,7 +12,7 @@ process make_db_for_blast {
 
     script:
     
-        out_db=refseqs_fasta.toString().replaceAll(".fa.gz|.fa", "_blastdb")
+        out_db=refseqs_fasta.toString().replaceAll(".fasta.gz|.fasta|.fa.gz|.fa", "_blastdb")
         dblist=out_db.split('/')
         db_name=dblist[-1]
         cdfile=[dblist[0..dblist.size()-2].join('/'), "blastdb_created_genome.cdate"].join('/')
@@ -80,18 +80,18 @@ process do_blastn {
         if [[ -e ${dbindex} ]]; then
             if [[ ${query} =~ .gz\$ ]]; then
               gzip -dc ${query} |\
-                 blastn -query  -  -db ${rdb}                     \
-                 -num_alignments 1 -perc_identity 50              \
-                  -task blastn -out ${blast_dir}/${blast_algn}    \
-                  -evalue 10e-10    -dbsize ${params.taxondbsize}      \
+                 blastn -query  -  -db ${rdb}         -dust no                   \
+                 -num_alignments 1 -perc_identity   ${params.blast_pident}       \
+                  -task blastn -out ${blast_dir}/${blast_algn}                   \
+                  -evalue ${params.blast_eval}   -dbsize ${params.taxondbsize}   \
                   -outfmt \"${params.bl_outfmt}\"    \
                   -num_threads ${params.NCPUS}       \
                    2> ${blast_dir}/${blast_algn}.log 1>&2;
             else
-              blastn -query ${query} -db ${rdb}          \
-                  -num_alignments 1 -perc_identity 50             \
-                  -task blastn -out ${blast_dir}/${blast_algn}    \
-                  -evalue 10e-10    -dbsize ${params.taxondbsize}      \
+              blastn -query ${query} -db ${rdb}        -dust no                       \
+                  -num_alignments 1 -perc_identity ${params.blast_pident}             \
+                  -task blastn -out ${blast_dir}/${blast_algn}                        \
+                  -evalue  ${params.blast_eval}     -dbsize ${params.taxondbsize}     \
                   -outfmt \"${params.bl_outfmt}\"    \
                   -num_threads ${params.NCPUS}       \
                    2> ${blast_dir}/${blast_algn}.log 1>&2;
@@ -267,7 +267,6 @@ process blast_sum_coverage {
     output:
         val("$blast_sumcov"), emit: TBL
         val("${blast_merge}_taxonomysum_byread.tbl"), emit: BYR
-      //  val("$unaling_ids"),emit: UNIDS
       
     script:
     blast_sumcov=blastout.replaceAll(".tbl",".coverage.tbl")
@@ -277,6 +276,11 @@ process blast_sum_coverage {
     merge_log=blast_sumcov.replaceAll(".tbl",".merge.tbl.log")
     
     sampid=blast_sumcov.split('/')[-1].split('[.]')[0]
+    
+     //reports dir
+     byrd="${params.reports_dir}/${sampid}_taxonomysum_byread.tbl"
+     bysq="${params.reports_dir}/${sampid}_taxonomysum_bysequence.tbl"
+     bysp="${params.reports_dir}/${sampid}_taxonomysum_byspecie.tbl"
     // odir="${params.taxfastdir}/${sampid}"
    //  unaling_ids=allqids.replaceAll(".ids", ".unaligned.ids")
     """
@@ -286,23 +290,28 @@ process blast_sum_coverage {
               $blastout > $blast_sumcov 2> $coverage_log;
         
         ## merge:
-        if ($clids==F); then 
+        if ($clids==F);   then 
                 ${params.bindir}/virwaste_taxon_output_merge_blastonly.pl         \
-                  -i ${params.blast_refseqs_dir}/C-RVDB_allentries_info.txt       \
+                  -i ${params.blast_refseqs_dir}/${params.blast_ref_db_info}       \
                   -B $blast_sumcov   --mincov ${params.mincovpct}                 \
-                   --pe ${params.asbl_dir}/megahit/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats         \
-                   --sg ${params.asbl_dir}/megahit/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats         \
-                  -o ${blast_merge}  2> ${merge_log} 1>&2;
+                   --pe ${params.asbl_dir}/${params.assembler}/${sampid}/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats         \
+                   --sg ${params.asbl_dir}/${params.assembler}/${sampid}/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats         \
+                  --samp ${sampid}   -o ${blast_merge}  2> ${merge_log} 1>&2;
         else
                 ${params.bindir}/virwaste_taxon_output_merge_blastonly.pl                                  \
                   -i ${params.blast_refseqs_dir}/C-RVDB_allentries_info.txt                                \
                   -B $blast_sumcov   --mincov ${params.mincovpct}                                          \
-                  --pe ${params.asbl_dir}/megahit/${sampid}/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats      \
-                  --sg ${params.asbl_dir}/megahit/${sampid}/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats      \
+                  --pe ${params.asbl_dir}/${params.assembler}/${sampid}/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats      \
+                  --sg ${params.asbl_dir}/${params.assembler}/${sampid}/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats      \
                    -c ${clids}  -u ${unids}                                                                \
                    -o ${blast_merge}  2> ${merge_log} 1>&2;
         fi;
     fi;
+
+     cp  ${blast_merge}_taxonomysum_byread.tbl  ${byrd}
+     cp  ${blast_merge}_taxonomysum_bysequence.tbl   ${bysq}
+     cp  ${blast_merge}_taxonomysum_byspecie.tbl  ${bysp}
+    
     """
     // ## Get list of unclassified ids:
     // ## gawk 'BEGIN{ while(getline<ARGV[1]>0) G[\$1]=\$1; ARGV[1]=""; } 
@@ -326,8 +335,8 @@ process index_seqs () {
 
 
 
-process getfas_for_cor () {  
-       // Get FASTA FILES (refseqs and contigs) for coverage of refseqs.
+process do_cov_onrefseqs () {  
+       // Get FASTA FILES (refseqs and contigs) for coverage of refseqs ans perform blast analysis.
     
     input:
         val(RefSqsDef)   // Refseqs info file (tsv)
@@ -338,22 +347,22 @@ process getfas_for_cor () {
 
     output:
        val("$finalblout"), emit: BLOUT
+       val("$blast_sumcov"), emit: COV
 
     script:
        spid=contigsfa.toString().split('/')[-1].split('[.]')[0]
        finalblout="${params.taxrefsqs}/${spid}/${spid}_${out_suffix}.tbl"
+       blast_sumcov="${params.taxrefsqs}/${spid}/${spid}_${out_suffix}.coverage.tbl"
+       coverage_log="${params.taxrefsqs}/${spid}/${spid}_${out_suffix}.coverage.log"
       """
             mkdir -p ${params.taxrefsqs}/${spid};
             [ -e $finalblout ] && rm -v $finalblout;
             touch $finalblout;
-            echo "AAAA" > /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
-            echo $RefSqsDef >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
-            wc -l $RefSqsDef  >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
             for txn in \$(awk -vIFS='\t' '\$1!~/^#/ {print \$3}' $RefSqsDef | sort | uniq);
              do {
                while read ln;
                  do {
-                   awk -vFS="\t" -vtaxid=\$txn '\$3==taxid{print \$5}' $RefSqsDef  > ${params.tmp_dir}/${spid}.\${txn}.sqids;
+                   awk -vFS="\t" -vtaxid=\$txn '\$3==taxid{print \$6}' $RefSqsDef  > ${params.tmp_dir}/${spid}.\${txn}.sqids;
                  }; done < $RefSqsDef;
                
                 # 0. init files
@@ -364,7 +373,6 @@ process getfas_for_cor () {
                  # 1. # Extract fastas of refseqs:
                  zcat ${refsfa} | seqkit grep -f ${params.tmp_dir}/${spid}.\${txn}.sqids - \
                               > ${params.tmp_dir}/${spid}.\${txn}.reference.fa;
-                 echo "1 \$txn   :  DONE:)" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
                       
                  # 2. # Get contigs ids (filter by taxonid). And extraxt fasta of contigs of interest.
                  awk -vtaxid="\${txn}" '\$9==taxid {print \$1} \
@@ -376,16 +384,13 @@ process getfas_for_cor () {
                          echo "2 \$txn   :  DONE:)" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
 
                          # 3. # Do the blast and add results to "final blast" file.
-                         echo "CONTIGS: ${params.tmp_dir}/${spid}.\${txn}.contigs.fa" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
-                         echo "REF FA: ${params.tmp_dir}/${spid}.\${txn}.reference.fa" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
                          egrep -Hc '^>' ${params.tmp_dir}/${spid}.\${txn}.reference.fa \
                                         ${params.tmp_dir}/${spid}.\${txn}.contigs.fa \
                                      >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
-                          # echo "contigs.fa is not empty" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
                           blastn -query   ${params.tmp_dir}/${spid}.\${txn}.contigs.fa   \
                                  -subject ${params.tmp_dir}/${spid}.\${txn}.reference.fa \
-                                 -num_alignments 1       -perc_identity 50        \
-                                 -evalue 10e-10    -dbsize ${params.taxondbsize}  \
+                                 -num_alignments 1       -perc_identity ${params.cor_pident}     \
+                                 -evalue ${params.cor_eval}   -dbsize ${params.taxondbsize}  \
                                  -outfmt \"${params.bl_outfmt}\"                  \
                                  -out ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl \
                                    2> ${params.tmp_dir}/${spid}.\${txn}.blast_out.log;
@@ -393,50 +398,16 @@ process getfas_for_cor () {
                                then 
                                    cat ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl >> ${finalblout};
                                    printf "%d HITS found\\n" \$(wc -l ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl | awk '{print \$1}') >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
-                               else 
-                                  echo "no hits found" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
                                fi;
-                      else
-                         echo "no contigs found" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
                       fi;
-                echo "3 \$txn  :  DONE:)" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
            }; done;
-      """
 
-//            
-//            for ln in \$(awk -vIFS="\t" -vOFS=":" '\$1!~/^#/ {print \$3,\$5}' $RefSqsDef)
-//             do
-//                echo $ln > /data/virpand/pandemies/TEST_SET/SIMDATA/pv;
-//                tax=`echo \$ln | cut -d ":" -f1`;
-//                echo "$tax" > /data/virpand/pandemies/TEST_SET/SIMDATA/pv;
-//                sid=`echo $ln | cut -d ":" -f2`;
-//                echo "$sid" > /data/virpand/pandemies/TEST_SET/SIMDATA/pv;
-//                [[ -v idsmap[$tax] ]] && idsmap[$tax]="${idsmap[$tax]},${sid}" || idsmap[$tax]=$sid;
-//             done;
-//             
-//            for  tx in  \${!idsmap[@]}; 
-//             do 
-//               echo " --- $tx ---"
-//               ids_str=\$(echo ${idsmap[$tx]} | tr ',' ' ')
-//                             # 1. # Extract fastas of refseqs:
-//                                seqkit faidx ${refsfa} "$ids_str" > ${params.tmp_dir}/${tx}.reference.fa;
-//                            
-//                            # 2. # Get contigs ids (filter by taxonid). And extraxt fasta of contigs of interest.
-//                                awk ' \$9==${tx} {print \$1} ' ${assign} > ${params.tmp_dir}/${tx}.contigs.ids;
-//                                seqkit faidx ${contigsfa} -1 ${params.tmp_dir}/${tx}.contigs.ids > ${params.tmp_dir}/${tx}.contigs.fa;
-//                                
-//                             # 3. # Do the blast and add results to "final blast" file.
-//                             blastn -query ${params.tmp_dir}/${tx}.contigs.fa       \
-//                                    -subject ${params.tmp_dir}/${tx}.reference.fa   \
-//                                     -num_alignments 1       -perc_identity 50      \
-//                                    -evalue 10e-10    -dbsize ${params.taxondbsize}    \
-//                                    -outfmt \"${params.bl_outfmt}\"                    \
-//                                     -num_threads ${params.NCPUS}                      \
-//                                     -out ${params.tmp_dir}/${tx}.blast_out.tbl        \
-//                                     2> ${params.tmp_dir}/${tx}.blast_out.log;
-//                    mkdir -p ${params.taxrefsqs}/${spid};
-//                              cat ${params.tmp_dir}/${tx}.blast_out.tbl >>  ${finalblout};
-//                 echo "TX is $tx and IDS are: $ids_str" > /data/virpand/pandemies/TEST_SET/SIMDATA/pv;
-//             done;
-//          """
+          if [ -s ${finalblout} ]; then 
+           ## Get summary of blast out coverage:
+           ${params.bindir}/coverage_blastshorttbl.pl \
+              ${finalblout} > $blast_sumcov 2> $coverage_log;
+            
+          fi;
+
+      """
 }

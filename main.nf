@@ -3,12 +3,12 @@
 include { bbduk_clean; samps_idtranslate } from './rawfq_clean.nf'
 include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
-include { megahit_assembly_all} from './reads_assembly.nf'
-include { trinity_assembly_sg; trinity_assembly_pe } from './reads_assembly.nf'
-include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn;  do_blast_kaiju; do_tblastx; best_reciprocal_hit; merge_blast_outs; blast_sum_coverage; getfas_for_cor } from './contigs_align.nf'
+include { megahit_assembly_all; metaspades_assembly} from './reads_assembly.nf'
+include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn;  do_blast_kaiju; do_tblastx; best_reciprocal_hit; merge_blast_outs; blast_sum_coverage; do_cov_onrefseqs } from './contigs_align.nf'
 include { kaiju_raw; discard_nonviral; kaiju_contigs; extract_ids; taxonid_to_fasta;  readid_to_fasta} from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
 include { handle_contamination_pr } from './contamination.nf'
+include { fill_html_report; make_summary_tbl } from './sum_and_report.nf'
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
 SamplesDef.eachLine {
@@ -51,7 +51,23 @@ workflow fastqc_onrawseqs() {
     x
 
   main:
-   fastQC(Channel.fromPath(params.rawfq)) | collect | multiQC_raw
+   
+    def thysamples = samplesMap
+    def ids=[]
+    thysamples.each { sampleID, illuminaID ->
+         ids << illuminaID
+    }
+    def spstr=ids.join(",")
+    def regx="$params.rawfq_dir/{$spstr}$params.rawfq_sfx"
+    
+    println "### $spstr ###"
+    //def regexp= "^($spstr)" << "(${R1}|${R2})*.gz" 
+    // Channel.fromPath(params.rawfq).view()
+    spschan=Channel.fromPath("$regx")
+    //spschan=spsch.filter({ it =~ /"$spstr"/ })
+    //spschan=spsch.grep({ it.toString() =~ /"$spstr"/ })
+    spschan.view()
+    fastQC(spschan) | collect | multiQC_raw
 }
 
 
@@ -170,8 +186,7 @@ workflow amplicon_sequences_align() {
    
     bowtie_amplicons_alignment(cluster_index_path, pe1, pe2, sgl)
     bowtie_amplicons_alignment_sg(cluster_index_path, pe1, pe2, sgl )
-    
-    //multiQC_bowtie_amp(bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect())
+    multiQC_bowtie_amp(bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect())
   
   emit:
     ALL=bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect()
@@ -308,45 +323,6 @@ workflow vizualise_results_flow() {
 
 }
 
-//workflow blast_unc_x_cl (){//
-//    take:
-//        tax_names
-//    
-//    main:
-//    extract_ids(tax_names)
-//    // extract_ids.out.CLT.view()
-//    taxonid_to_fasta(extract_ids.out.CLT)
-//    readid_to_fasta(extract_ids.out.UN)
-//    rfasta=new File(taxonid_to_fasta.out.REF.toString())
-//    if (rfasta.size() > 0 ) {
-//        make_db_for_blast(taxonid_to_fasta.out.REF)
-//        do_blastn(readid_to_fasta.out.UNC, make_db_for_blast.out.DB)
-//        blast_sum_coverage(do_blastn.out, extract_ids.out.UN )
-//        blast_rpt=blast_sum_coverage.out.TBL
-//        uncids=blast_sum_coverage.out.UNIDS
-//     } else {
-//        blast_rpt=""
-//        uncids=extract_ids.out.UN
-//     }
-//    emit:
-//      REP=blast_rpt
-//      UN=uncids
-// }
-
-//workflow blast_unc_x_rvdb () {
-//    take:
-//        unaligned_ids
-//    main:
-//        
-//        readid_to_fasta(unaligned_ids)
-//        ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
-//        do_blastn(readid_to_fasta.out, ref_database)
-//        blast_sum_coverage(do_blastn.out, unaligned_ids )
-//        blast_rpt=blast_sum_coverage.out.TBL
-//        
-//    emit:
-//        REP=blast_rpt
-//}
 
 
 workflow direct_blast () {
@@ -379,6 +355,7 @@ workflow direct_blast () {
     emit:
         REP=blast_byread
         CFA=all_contigs
+        DONE=blast_byread
 }
 
 workflow unc_contigs_blast (){
@@ -466,40 +443,20 @@ workflow coverage_onrefseqs() {
     take:
         contigs_fa
         assign_byr
+
     main:
-   //     def txns_map=[:]
-   //     RefSqsDef = file("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}")
-   //     RefSqsDef.eachLine {
-   //         line -> {
-   //             def rf = line.split('\t')
-   //             // ignore lines stating with "#"
-   //             if (!rf[0].startsWith("#")) {
-   //                if (txns_map.containsKey(rf[2])) {
-   //                    txns_map[rf[2]].add(rf[4])
-   //                } else {
-   //                     txns_map.(rf[2]) = []
-   //                     txns_map[rf[2]].add(rf[4])
-   //                   
-   //                }
-   //             }
-   //         }
-   //     }
-   
-    //  index_refs("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}")
-    //  index_seqs(contigs_fa)
       
-      getfas_for_cor("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
+      do_cov_onrefseqs("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
                      "${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}",
                      contigs_fa,
                      assign_byr,
                      params.bl_suffix
                      )
-     //coverage + merge
-               
-     // Plots de coverage
-               
+
+   
     emit:
-     ""
+      blastout=do_cov_onrefseqs.out.BLOUT
+      coverage=do_cov_onrefseqs.out.COV
 
 }
 
@@ -516,11 +473,8 @@ workflow {
    
         init_samples()
         fastqc_onrawseqs(init_samples.out)
-   //      if (params.trim_adapters == true ) {
-            reads_clean(init_samples.out)
-    //     } else {
-    //       idtranslate(init_samples.out)
-    //     }
+        reads_clean(init_samples.out)
+   
     // 2 // Discard reads identified as nonviral // //
    
         //KDB=Channel.from(params.kaijudbs)
@@ -541,17 +495,12 @@ workflow {
         if (params.assembler ==~ /(?i)MEGAHIT/){
              megahit_assembly_all(reads_filter_nonviral.out)
              CNFA=megahit_assembly_all.out.CGSout
-             //megahit_assembly_flow(reads_filter_nonviral.out )
-             //CNFA=megahit_assembly_flow.out.FASTA  //.merge()
+
              
-             //brhtbl=megahit_assembly_flow.out.TBL
-             //Blastout=megahit_assembly_flow.out.BLOUT
-             
-        }else if (params.assembler ==~ /(?i)TRINITY/ ){
-            // trinity_assembly_flow(reads_filter_nonviral.out)
-            // CNFA=trinity_assembly_flow.out.FASTA
-            // brhtbl=trinity_assembly_flow.out.TBL
-            // Blastout=trinity_assembly_flow.out.BLOUT
+        }else if (params.assembler ==~ /(?i)METASPADES/ ){
+             metaspades_assembly(reads_filter_nonviral.out)
+             CNFA=metaspades_assembly.out.CGSout
+
         }
     
     // 5 // Taxonomic classification of contigs // //
@@ -583,21 +532,33 @@ workflow {
 
             // direct_blast(ref_fa, CNFA.merge())
             direct_blast(ref_fa, CNFA)
+            FIN=direct_blast.out.DONE.collect()
+            
             coverage_onrefseqs(direct_blast.out.CFA, 
                                direct_blast.out.REP
                               )
+           
          }
 
     
     // 6 // Reporting results
     
-        // 6.1 // Plot coverage by genome (reads and contigs) // //
+        // 6.1. // Summary tables // //
         
-   //     vizualise_results_flow(
-   //                    amplicon_sequences_align.out.PE,
-   //                    amplicon_sequences_align.out.SG,
-   //                    Blastout,
-   //                    brhtbl)
+        make_summary_tbl(FIN)
+        
+        // 6.2. // Plot coverage by genome (reads and contigs)
+        
+        vizualise_results_flow(
+                       amplicon_sequences_align.out.PE,
+                       amplicon_sequences_align.out.SG,
+                       coverage_onrefseqs.out.blastout,
+                       coverage_onrefseqs.out.coverage)
+        
+        // 6.3. // HTML report. 
+        fill_html_report(make_summary_tbl.out)
+        
+
                        
         // 6.2 // Taxonomy summary
             // taxon_outkaiju  (*.rvdb.names.out file)

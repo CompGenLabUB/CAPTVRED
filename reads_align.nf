@@ -39,8 +39,6 @@ process generate_index_bowtie {
 process bowtie_amplicons_alignment {
 
     input:
-      //val dep
-      //tuple val(idx_path), val(pe1), val(pe2), val(sgle)
       val(idx_path)
       val(pe1)
       val(pe2)
@@ -61,9 +59,11 @@ process bowtie_amplicons_alignment {
         """
         
         bowtie2 --threads $params.NCPUS -q  -x ${idx_path} \
-                --end-to-end --sensitive  -N 1            \
+                --end-to-end --sensitive                   \
+                -N ${params.bowtie_nmismatch}              \
+                -L ${params.bowtie_seedlen}                \
                 --met-file ${odir}/${pe_root}.metrics      \
-                -1 ${pe1} -2 ${pe2}        \
+                -1 ${pe1} -2 ${pe2}                        \
                 -S ${odir}/${pe_root}.bowtie.sam           \
                 2> ${odir}/${pe_root}.bowtie.log;
         
@@ -84,8 +84,6 @@ process bowtie_amplicons_alignment {
 process bowtie_amplicons_alignment_sg {
 
     input:
-      //val dep
-      //tuple val(idx_path), val(pe1), val(pe2), val(sgle)
       val(idx_path)
       val(pe1)
       val(pe2)

@@ -88,18 +88,23 @@ if (file.info(contigs.gff.filename)$size > 0) {
 pe.refs<-as.data.frame(table(seqnames(pe.bam)))
 sg.refs<-as.data.frame(table(seqnames(sg.bam)))
 reflst <- union(sg.refs[sg.refs$Freq!=0, 1], pe.refs[pe.refs$Freq!=0, 1])
-
+print (reflst)
 #NA Plots:
 NA_plot <- function(xmax, ymax, message) {
                 theplot <- ggplot() +
-                        theme_void() +
+                        theme_bw() +
                         geom_text(aes(xmax/2, ymax/2, label=message),
                                     size=10, color='grey', alpha=0.6) +
-                        xlab(NULL) +
+                        xlab(NULL) + ylab(NULL) +
                         xlim(0, xmax) +
                         ylim(0,ymax) +
                         scale_x_continuous(expand=c(0,0)) +
-                        theme(panel.border = element_rect(colour = "black", fill=NA, size=0.6)) 
+                        theme(panel.border = element_rect(colour = "black", fill=NA, size=0.6),
+                              #panel.border = element_blank(),
+                                    axis.text.x=element_blank(),
+                                    axis.text.y=element_blank(),
+                                    text = element_text(size = 10),
+                                    plot.title = element_text(size = 15)) 
                 return(theplot)
           }
 
@@ -125,7 +130,7 @@ for (rgn in reflst) {
             rgn <- rgn.id;
             GFF.filename  <- paste0(GFF.refs.dir, "/", rgn ,".gff")
         }
-        rgn.name <- gsub("_"," ",as.character(HRids[rgn]))
+        rgn.name <- gsub("_"," ",as.character(HRids[rgn.v]))
         
         txdb <- makeTxDbFromGFF(file=GFF.filename,
                             format="gff3");
@@ -134,8 +139,8 @@ for (rgn in reflst) {
         
         
         # TxDb object
-        
-        colors.genes <- hcl.colors(length(levels(as.factor(as.list(txdb)$transcripts$tx_id))), palette="Spectral")
+        ntx <- length(levels(as.factor(as.list(txdb)$transcripts$tx_id)));
+        colors.genes <- ifelse(ntx > 1, hcl.colors(ntx, palette="Spectral"), "blue");
         # parameters
         Xmin  <- as.integer(ref.coor[rgn.id, 1,]);
         Xmax  <- as.integer(ref.coor[rgn.id, 2,]); # WE NEED genome length
@@ -143,37 +148,39 @@ for (rgn in reflst) {
         
         #plot
         print("Ploting refgen")
-        refgen <- autoplot(txdb, which=GRanges(rgn.id, IRanges(Xmin, Xmax)),
-               names.expr = "gene_id", fill=colors.genes) +
-        theme_bw() +
-        theme(panel.border = element_blank(),
-            axis.text.y=element_blank(),
-            text = element_text(size = 10),
-            plot.title = element_text(size = 15)) +
-        scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
+        refgen <- autoplot(txdb,
+                           which=GRanges(rgn.id, IRanges(Xmin, Xmax)),
+                                         names.expr = "gene_id", fill=colors.genes) +
+                      theme_bw() +
+                      theme(panel.border = element_blank(),
+                            axis.text.y=element_blank(),
+                            text = element_text(size = 10),
+                            plot.title = element_text(size = 15)) +
+                      scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
     
     # Paired ends coverage
         
         #subset bam
-        pesub.bam<-pe.bam[seqnames(pe.bam) == rgn.v ]     ## SI ESTA EMPTY FER UN PLOT EN BLANC
+        pesub.bam<-pe.bam[seqnames(pe.bam) == rgn.v, ]     ## SI ESTA EMPTY FER UN PLOT EN BLANC
         pe.avgcov <- mean(coverage(pesub.bam));
         
         # plot
         print("Ploting PE_COV")
         if (length( pesub.bam) > 0) {
             pe.coverage <- autoplot(pesub.bam , geom = "line", stat = "coverage") +
-                theme_bw() + theme(text = element_text(size = 10)) + ylab("") +
-                scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0)) #+
+                               theme_bw() + 
+                               theme(text = element_text(size = 10)) + ylab("") +
+                               scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0)) #+
                 #geom_hline(yintercept=pe.avgcov, color="red", linetype="dotdash"); 
         }else{
-            pe.coverage <- NA_plot( Xmax, 1, 'No alignments found')
+            pe.coverage <- NA_plot( Xmax, 1, 'No alignments found') 
         }
     
     
     #  Single ends coverage
         
         #subset bam
-        sgsub.bam<-sg.bam[seqnames(sg.bam) == rgn.v ]        ## SI ESTA EMPTY FER UN PLOT EN BLANC
+        sgsub.bam<-sg.bam[seqnames(sg.bam) == rgn.v, ]        ## SI ESTA EMPTY FER UN PLOT EN BLANC
         sg.avgcov <- mean(coverage(sgsub.bam));
         
         #plot
@@ -192,7 +199,6 @@ for (rgn in reflst) {
         #plot
         print("Ploting Assembled contigs")
         print(ContigsFound)
-        ExistContigsPlot=F;
         if ( ContigsFound) {
                 print(" --- AAA --- ")
                 if (any(contigs.txdb$user_seqlevels == rgn.v)) {
@@ -206,15 +212,12 @@ for (rgn in reflst) {
                                     text = element_text(size = 10),
                                     plot.title = element_text(size = 15)) +
                                 scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
-                  ExistContigsPlot=T;
                 }
         } else {
-                print ("ELSEE") }
-        
-        print( ExistContigsPlot) 
-        if ( !(ExistContigsPlot)){
                     print(" --- CCC --- ")
-                    contigs <- NA_plot( Xmax, 1, 'No contigs > 100nt assembled')
+                    contigs <- NA_plot( Xmax, 1, 'No contigs > 100nt assembled')+
+                                scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0)) +
+                                theme(axis.text.x=element_text())
         }
         
         
@@ -227,13 +230,13 @@ for (rgn in reflst) {
                         PEcovg=pe.coverage,
                         SEcovg=sg.coverage,
                         Assembly=contigs,
-                        heights = c(0.2, 0.2, 0.2, 0.1),
+                        heights = c(0.2, 0.2, 0.2, 0.2),
                         xlim = c(Xmin, Xmax), 
                         main=title
-                    ) +
-               scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
-    PNG.filename<- paste0(outplots.dir, "/Coverage_", samp.id, "_onto_", rgn.v, ".png") 
-    #  Save plot
-        ggsave(PNG.filename, plot=wholeplot,
-               width = 25, height = 15, units = "cm", dpi = 600);
+                    )  +
+                 scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
+       PNG.filename<- paste0(outplots.dir, "/Coverage_", samp.id, "_onto_", rgn.v, ".png") 
+       #  Save plot
+       ggsave(PNG.filename, plot=wholeplot,
+              width = 25, height = 15, units = "cm", dpi = 600);
 }

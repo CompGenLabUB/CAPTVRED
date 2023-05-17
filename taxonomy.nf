@@ -179,30 +179,34 @@ process kaiju_raw {
         """
             [ -e ${odir} ] ||  mkdir -vp ${odir};
             #PE
-            kaiju -v -z ${task.cpus}                           \
+            kaiju -v -z ${task.cpus}           -E 0.001           \
                  -t  ${params.kaijuDBD}/${db_id}/nodes.dmp        \
                  -f  ${params.kaijuDBD}/kaiju_db_${db_id}.fmi     \
                  -i ${pe1}     -j ${pe2}                          \
-                 -o  ${odir}/${samp_id}_pe.kaiju.${db_id}.out;
+                 -o  ${odir}/${samp_id}_pe.kaiju.${db_id}.out    \
+                 2> ${odir}/${samp_id}_pe.kaiju.${db_id}.out.log 1>&2;
 
             kaiju-addTaxonNames -t ${params.kaijuDBD}/${db_id}/nodes.dmp   \
                 -n ${params.kaijuDBD}/${db_id}/names.dmp                   \
                 -r superkingdom,genus,species                              \
                 -i ${odir}/${samp_id}_pe.kaiju.${db_id}.out                \
-                -o ${odir}/${samp_id}_pe.kaiju.${db_id}.names.out;
+                -o ${odir}/${samp_id}_pe.kaiju.${db_id}.names.out    \
+                2> ${odir}/${samp_id}_pe.kaiju.${db_id}.names.out.log  1>&2;
             
             #SG
-            kaiju -v -z ${task.cpus}                               \
+            kaiju -v -z ${task.cpus}             -E 0.001           \
                   -t  ${params.kaijuDBD}/${db_id}/nodes.dmp         \
                   -f ${params.kaijuDBD}/kaiju_db_${db_id}.fmi       \
                   -i  ${sgle}                                       \
-                  -o ${odir}/${samp_id}_sg.kaiju.${db_id}.out;
+                  -o ${odir}/${samp_id}_sg.kaiju.${db_id}.out       \
+                  2> ${odir}/${samp_id}_sg.kaiju.${db_id}.out.log 1>&2;
                   
           kaiju-addTaxonNames -t ${params.kaijuDBD}/${db_id}/nodes.dmp   \
                 -n ${params.kaijuDBD}/${db_id}/names.dmp                 \
                 -r superkingdom,phylum,class,order,family,genus,species  \
                 -i ${odir}/${samp_id}_sg.kaiju.${db_id}.out              \
-                -o ${odir}/${samp_id}_sg.kaiju.${db_id}.names.out;
+                -o ${odir}/${samp_id}_sg.kaiju.${db_id}.names.out        \
+                2> ${odir}/${samp_id}_sg.kaiju.${db_id}.names.out.log 1>&2;
                   
         #ALL
            #summary table
@@ -211,7 +215,8 @@ process kaiju_raw {
                     -r species   \
                     -o ${odir}/${samp_id}_all.kaiju.${db_id}.summary.tsv  \
                     ${odir}/${samp_id}_pe.kaiju.${db_id}.out              \
-                    ${odir}/${samp_id}_sg.kaiju.${db_id}.out;
+                    ${odir}/${samp_id}_sg.kaiju.${db_id}.out              \
+                    2> ${odir}/${samp_id}_all.kaiju.${db_id}.summary.tsv.log 1>&2;
 
             cat  ${odir}/${samp_id}_pe.kaiju.${db_id}.out            \
                  ${odir}/${samp_id}_sg.kaiju.${db_id}.out            \
@@ -226,7 +231,8 @@ process kaiju_raw {
                     -t ${params.kaijuDBD}/${db_id}/nodes.dmp           \
                     -n ${params.kaijuDBD}/${db_id}/names.dmp           \
                     -i ${odir}/${samp_id}_all.kaiju.${db_id}.out       \
-                    -o ${odir}/${samp_id}_all.kaiju.${db_id}.out.krona;
+                    -o ${odir}/${samp_id}_all.kaiju.${db_id}.out.krona \
+                    2> ${odir}/${samp_id}_all.kaiju.${db_id}.out.krona.log 1>&2;
 
             ktImportText -o ${odir}/${samp_id}_all.kaiju.${db_id}.out.krona.html \
                         ${odir}/${samp_id}_all.kaiju.${db_id}.out.krona;

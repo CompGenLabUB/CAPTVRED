@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import sys
 import numpy as np
 import re
@@ -8,40 +11,44 @@ import pandas as pd
 USAGE: 
 
 python3 /dir/to/virwaste_get_summary_tables.py     \
-        /dir/to/sample_definitions.tbl \
-        /dir/to/raw/multiqc_fastqc.txt \
-        /dir/to/clean/multiqc_fastqc.txt \
+        /dir/to/sample_definitions.tbl     \
+        /dir/to/raw/multiqc_fastqc.txt     \
+        /dir/to/clean/multiqc_fastqc.txt   \
         /dir/to/filter/multiqc_fastqc.txt  \
          /dir/to/align/multiqc_bowtie2.txt \
+         /dir/to/contigs_summary.tbl       \
+         /dir/to/taxon_summary.tbl         \
          /dir/to/outfile.csv
 
 OUTPUT FILE:
 Fields are:  IDSample, N.-Raw-Reads, N.-Clean-Reads-PE, N.-Clean-Reads-SG, N.-Clean-Reads-TOT, 
              N.-Filt-Reads-PE, N.-Filt-Reads-SG, N.-Filt-Reads-TOT, N.-Aligned-SG, N.-Aligned-PE-Both,
-             N.-Aligned-PE-OneMate, N.-Aligned-Total
+             N.-Aligned-PE-OneMate, N.-Aligned-Total, N.ctgs+sgl assemblied, N.contigs, n.Singletons, 
+             n.seqs-assembled,  n.Reference-sequences-found, n.species-found
 '''
 
 samples={}
 decoder={}
 try:
-        with open(sys.argv[1], 'r') as file:
+        with open(sys.argv[1], 'r') as file:   ##SAMPLES DEFINITION TBL
                 for line in file.readlines():
                         if not line.startswith("#"):
                                 ln=line.rstrip().split("\t")
-                                samples[ln[0]]= [int(0)]*11 #[ int(0), int(0), int(0), int(0), int(0), int(0), int(0), int(0), int(0), int(0)]
+                                samples[ln[0]]= [int(0)]*16 #[ int(0), int(0), int(0), int(0), int(0), int(0), int(0), int(0), int(0), int(0)]
                                 decoder[ln[1]]=ln[0]
-                samples["TOTAL"] = [int(0)]*11
+                samples["TOTAL"] = [int(0)]*16
             
 except ValueError:
         print("No samples file found... Please give samlpes tbl file.")
 print(decoder)
 print( samples )
 print( "\n\n")
+print( sys.argv[2] )
 try:
-        with open(sys.argv[2], 'r') as file:
+        with open(sys.argv[2], 'r') as file:   ## RAW READS
                 for line in file.readlines():
                         ln=line.rstrip().split("\t")
-                        idf=re.sub('_R[1,2]_001.fastq.gz', "", ln[0])
+                        idf=re.sub('_R[1,2]_001.fastq.gz', '', ln[0])
                         if not idf=="Sample":
                                 samples[decoder[idf]][0] += int(float(ln[4]))
                                 samples["TOTAL"][0] += int(float(ln[4]))
@@ -52,7 +59,7 @@ print( "\n\n")
 
 
 try:
-        with open(sys.argv[3], 'r') as file:
+        with open(sys.argv[3], 'r') as file:   ## CLEAN READS
                 for line in file.readlines():
                         ln=line.rstrip().split("\t")
                         idf=ln[0]
@@ -69,13 +76,13 @@ try:
                                         samples[idf][3] += int(float(ln[4]))
                                         samples["TOTAL"][2] += int(float(ln[4]))
                                         samples["TOTAL"][3] += int(float(ln[4]))
-except ValueError:
+except (FileNotFoundError, IOError):
         print("No multiqc found for CLEAN READS... Table will show zeroes for all related fields.")
 print( samples )
 print( "\n\n")
                                 
 try:
-        with open(sys.argv[4], 'r') as file:
+        with open(sys.argv[4], 'r') as file:   ## FILTERED READS
                 for line in file.readlines():
                         ln=line.rstrip().split("\t")
                         idf=ln[0]
@@ -98,7 +105,7 @@ print( samples )
 print( "\n\n")
 
 try:
-        with open(sys.argv[5], 'r') as file:
+        with open(sys.argv[5], 'r') as file:   # MAPED READS
                 for line in file.readlines():
                         ln=line.rstrip().split("\t")
                         idf=ln[0]
@@ -119,24 +126,41 @@ except ValueError:
         print("No multiqc found for BAM ALIGNED READS... Table will show zeroes for all related fields.")
 print( samples )
 print( "\n\n")
-
+print(sys.argv[6])
 try:
-        with open(sys.argv[6], 'r') as file:
+        with open(sys.argv[6], 'r') as file:   ### CONTIGS SUMMARY
                 for line in file.readlines():
-                        ln=line.rstrip().split("\t")
-                        idf=ln[0]
-                        samples[idf][11] += int(float(ln[1])
-                        samples[idf][12] += int(float(ln[4])
+                        if not line.startswith("#"):
+                                ln=line.rstrip().split(" ")
+                                idf=ln[0]
+                                samples[idf][11] += int(float(ln[2]))
+                                samples[idf][12] += int(float(ln[1]))
+                                samples[idf][13] += int(float(ln[2])) - int(float(ln[1]))
 except ValueError:
         print("No CONTIGS SUMMARY file... Table will show zeroes for all related fields.")
+print( samples )
+print( "\n\n")
+print(sys.argv[7])
+try:
+        with open(sys.argv[7], 'r') as file:   ### TAXON STATS SUMMARY
+                for line in file.readlines():
+                        if not line.startswith("#"):
+                                ln=line.rstrip().split("\t")
+                                idf=ln[0].split(":")[1]
+                                samples[idf][14] += int(float(ln[1].split(':')[0]))
+                                samples[idf][15] += int(float(ln[2].split(':')[0]))
+                                samples[idf][16] += int(float(ln[3].split(':')[0]))
+except ValueError:
+        print("No TAXON STATS SUMMARY file... Table will show zeroes for all related fields.")
 print( samples )
 print( "\n\n")
 
 
 #print(samples)
-outd=open(sys.argv[7], 'w')
+outd=open(sys.argv[8], 'w')
 outd.write("#Sample_ID,Sample_Type,Sequencing_Method,N_RawReads,N_cleanReads_PE,N_CleanReads_SGE,")
-outd.write("N_AlignedReads_PE_both,N_AlignedReads_PE_onemate,N_AlignedReads_SGLE,N_AlignedReads_Total\n")
+outd.write("N_AlignedReads_PE_both,N_AlignedReads_PE_onemate,N_AlignedReads_SGLE,N_AlignedReads_Total,")
+outd.write("N_Contigs+sgl,N_contigs,N_singletons,N_contigs+sgl_assigned,N_Reference_Sequences_Found,N_Species_found")
 for s in sorted(samples):
         #strg=[s, [i for i in samples[s]]]
         #print (strg)
@@ -145,6 +169,5 @@ for s in sorted(samples):
         outd.write("\n")
 outd.close()
 
-                                
 exit(0);
 

@@ -5,7 +5,7 @@ process coverage_plots {
         val pebam
         val sgbam
         val blastout
-        val brh
+        val covfl
     
     //output? no cal
     
@@ -14,11 +14,11 @@ process coverage_plots {
     gffblast=blastout.replaceAll(/.tbl$/ ,".gff")
     rdir="${params.amplicon_refseqs_dir}/gff_refgenomes"
     samp_id=pebam.split('/')[-1].toString().replaceAll("_pe.bowtie.sorted.mapped.bam","")
-    //idtoname="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis_refseqs_idrelation.tsv"
-    infofl="${params.amplicon_refseqs_dir}/refseqs_ids_relation.tsv"
+    //idtoname="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis.ids"
+    infofl="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis.ids"
     
     """
-    bash ${params.bindir}/rbbh-blast2gff.sh  ${brh}   ${blastout}   ${gffblast}
+    bash ${params.bindir}/cov-blast2gff.sh  ${covfl}   ${blastout}   ${gffblast}
     
     
     Rscript ${params.bindir}/virwaste_coverage_figures.R         \

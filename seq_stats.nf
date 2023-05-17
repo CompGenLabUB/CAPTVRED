@@ -34,10 +34,9 @@ process multiQC_raw {
         --fullnames                                     \
         --force                                         \
         --filename ${params.runID}_multiqc_raw.html   \
-        --outdir ${params.clnfq_dir}   \
+        --outdir ${params.reports_dir}   \
          2> ${params.logs_dir}/${params.runID}_multiqc_raw.log;
          
-    cp ${params.clnfq_dir}/${params.runID}_multiqc_raw.html  ${params.reports_dir}
     """
 }
 
@@ -55,10 +54,9 @@ process multiQC_clean {
         --fullnames                                     \
         --force                                         \
         --filename ${params.runID}_multiqc_clean.html   \
-        --outdir ${params.clnfq_dir}  \
+        --outdir ${params.reports_dir}  \
          2> ${params.logs_dir}/${params.runID}_multiqc_clean.log;
     
-    cp ${params.clnfq_dir}/${params.runID}_multiqc_clean.html  ${params.reports_dir}
     """
 }
 
@@ -77,9 +75,9 @@ process multiQC_filt {
         --fullnames                                     \
         --force                                         \
         --filename ${params.runID}_multiqc_filt.html   \
-        --outdir ${params.clnfq_dir}   \
+        --outdir ${params.reports_dir}   \
          2> ${params.logs_dir}/${params.runID}_multiqc_filt.log;
-    cp ${params.clnfq_dir}/${params.runID}_multiqc_filt.html  ${params.reports_dir}
+
     """
 }
 
@@ -95,13 +93,13 @@ process multiQC_bowtie_amp {
     //sampdirs=x.join("  ")
     samplogs=x.join("  ").replaceAll(".sorted.mapped.bam", ".log")
     """
+    echo "AQUI ESTEMM" > kkfinsh
     multiqc $samplogs \
         --title "$params.runID MultiQC in bam files after amplicon align with bowtie"    \
         --fullnames                                     \
         --force                                         \
         --filename ${params.runID}_multiqc_bowtie_amplicons_alignment.html   \
-        --outdir ${params.ampaln_dir}  \
+        --outdir ${params.reports_dir}  \
         2> ${params.logs_dir}/${params.runID}_multiqc_bowtie_amplicons_alignment.log;
-    cp ${params.ampaln_dir}/${params.runID}_multiqc_bowtie_amplicons_alignment.html ${params.reports_dir}
     """
 }

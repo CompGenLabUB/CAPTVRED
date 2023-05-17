@@ -17,6 +17,7 @@ use global qw( :Counter );
 $global::_verbose{RAW} = 1;
 $_cntN = 50000;
 my $debug = 0; 
+my $sampid;
 my $datab_info; # = $ARGV[0];
 my $blastcov;  # = $ARGV[1];
 my $clas_ids;  # = $ARGV[2];
@@ -27,6 +28,7 @@ my $petbl;   ## Tabular file obtained with samtools idxstats: each row is a cont
 my $setbl;   ## Tabular file obtaiden with samtools idxstats: each row is a contig, 3rd column is #se-reads mapped 
 
 GetOptions (
+    'samp=s'              =>\$sampid,
     'i|db_info=s'       => \$datab_info,
     'B=s'               => \$blastcov,
     'mincov:i'          => \$mincov,
@@ -206,18 +208,22 @@ while (<GIN>) {
     $sid=$gn[0];
     exists($tids{$sid}) && do {
         $fam = 'NA';
-        $tid=$gn[1]; # it can be "NA"
-        $spc=(defined($gn[2]) && $gn[2] ne '') ? $gn[2] : "NA";
-        $spc =~ s/\W+/_/og; # cleaning up species name
-        $spc =~ s/_+/_/og;
-        $spc =~ s/(_\b|\b_)//og;
+        $spc='NA';
+        $tid='NA';
+      #  $spc=(defined($gn[2]) && $gn[2] ne '') ? $gn[2] : "NA";
+      #  $spc =~ s/\W+/_/og; # cleaning up species name
+      #  $spc =~ s/_+/_/og;
+      #  $spc =~ s/(_\b|\b_)//og;
         for (my $i=3; $i < @gn; $i++) {
-            if ($gn[$i] =~ /^family/o) {
-               my @g = split /:/o, $gn[$i];
-               $fam = $g[1];
-               last;
-            };
+            ($gn[$i] =~ /^family/o) && do {
+                      my @g = split /:/o, $gn[$i];
+                      $fam = $g[1]; };
+            ($gn[$i] =~ /^species/o) && do {
+                      my @g = split /:/o, $gn[$i];
+                      $spc = $g[1];
+                      $tid = $g[2]; };
         };
+        
         # $nreads=$qrcnts{$sid};  # number of reads mapped 
 
        # push @{$tids{$sid}}, (exists($bcount{$sid}) ? $bcount{$sid} : 0);
@@ -230,7 +236,7 @@ while (<GIN>) {
         foreach my $contigid (keys %{ $rids{$sid} }) {
             next if $contigid =~ /##(SUM|NCTGS)##/;
         #     $nreads += $qids{$contigid}[6];  ## nReads sumatory
-            push @{ $qids{$contigid} }, $tid, $spc, $fam;   ## Add species, family and taxonID information to queries HoL.
+            push @{ $qids{$contigid} }, $tid, $spc, $fam if scalar(@{ $qids{$contigid} }) < 10;   ## Add species, family and taxonID information to queries HoL.
         };
         push @{$tids{$sid}}, $tid, $spc, $fam, $ncontigs, $nreads;
 
@@ -301,6 +307,7 @@ foreach my $j (keys %tids){  # 0.SEQLEN 1.NUCALN 2.COVPCT 3.BHIDENT 4.TXNID 5.SP
     $n++;
     &counter($n,$c) if ($n % 100 == 0);
 }; # foreach $j
+my $totsqs=$n;
 &counter_end($n);
 close(ROUT);
 $debug && do {
@@ -328,6 +335,7 @@ foreach my $sp (keys %specs){
     $n++;
     &counter($n,$c) if ($n % 10 == 0);
 }; # foreach $sp
+my $totspecs=$n;
 &counter_end($n);
 close(SOUT);
 
@@ -354,6 +362,7 @@ foreach my $i (keys %qids){
     $n++;
     &counter($n,$c) if ($n % 1000 == 0);
 }; # foreach $i
+my $totrds=$n;
 &counter_end($n);
 close(QOUT);
 $debug && do {
@@ -369,4 +378,13 @@ $debug && do {
     printf STDERR "#*# %-9s %9d %9d %9d %9d : ALL %d FILTered %d\n", "TOTAL", @sc, $m, $n;  
 };
 
+print STDERR "### WRITTING STATS\n";
+open(STSOUT, ">", join( ".", $out_prefix, "stats.out" ));
+#my $totrds=scalar keys %qids;
+#my $totspecs=scalar keys %specs;
+#my $totsqs=scalar keys %tids;
+#my $seqsfromkit=
+#my $specsfromkit=
+printf STSOUT "SAMPId:$sampid\tNREADS:$totrds\tNSEQS:$totsqs\tNSPECS:$totspecs\n";
+close(STSOUT);
 exit(0);
