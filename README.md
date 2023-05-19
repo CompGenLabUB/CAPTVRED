@@ -1,12 +1,13 @@
-# virwaste
-VIRWASTE PIPELINE is a pipeline designed to analyse viral NGS data obtained from targeted sequencing. More specifically, targeted sequencing with a set of probes designed based on a set of reference genomic sequences of interest. This pipeline provides a set of analysis for the viral identification and discovery through alignment, assembly and taxoniomic classification of the data. It is assumed that the proves were designed basedon the reference set  with the aim to find this sequences and other alike sequences.
+::[./docs/captvred_logo.png](CAPTVRED)::
+
+CAPTVRED PIPELINE is a pipeline designed to analyse viral NGS data obtained from targeted sequencing. More specifically, targeted sequencing with a set of probes designed based on a set of reference genomic sequences of interest. This pipeline provides a set of analysis for the viral identification and discovery through alignment, assembly and taxoniomic classification of the data. It is assumed that the proves were designed basedon the reference set  with the aim to find this sequences and other alike sequences.
 
 ## Run from cmdline:
 ```{.sh}
 nextflow $NXFDIR/main.nf -with-report $RPTDR/Nextflow_execution_report.html
 ```
 
-### Optional parameters of the virwaste pipeline:
+### Optional parameters of the CAPTVRED pipeline:
 ```{.sh}
 --assembler upper case string. Available options are MEGAHIT(default), TRINITY (time and resource consuming) and SPADES(?).
 --NCPUS integer. Default is 32.
@@ -19,7 +20,7 @@ nextflow $NXFDIR/main.nf -with-report $RPTDR/Nextflow_execution_report.html
 All allowed commands can be found in:  _Nextflow documentation (https://www.nextflow.io/docs/latest/index.html) > Command line inteface(CLI) > Commands > run_
 
 ## Files:
-In the Nextflow repository for the VIRWASTE pipeline one can find the following files:
+In the Nextflow repository for the CAPTVRED pipeline one can find the following files:
 * projectvars.sh -> this file is not part of the nextflow environment, is used to set the local directories before launchong nextflow.
 * nextflow.config -> Environment variables. This file is the same for all the runs. This file is read by default by nextflow (it must be placed in the project directory or in the base directory).
 * main.nf -> Controls workflow
@@ -39,7 +40,7 @@ Before running the pipeline, file system must be prepared as follows:
 __FIRST TIME:__<br /> 
 __0.__ If you don't have nextflow fostware install it following the given instructions in its documentation (https://www.nextflow.io/docs/latest/getstarted.html). <br />
 __a.__ Create a project directory (Root directory). The pipeline and all run will be saved inside this folder.<br />
-__b.1.__ Inside the root directory download the repository of the pipeline (folder can be named: virwaste). <br />
+__b.1.__ Inside the root directory download the repository of the pipeline (folder can be named: CAPTVRED). <br />
 __b.2.__  Inside the root directory create a directory with the run name ID (Run directory or base directory). <br />
 __c.__ Prepare reference sequences (fasta file with all reference sequences and gff files for all genomes) and kaiju databases (see documentation for more info). <br />
 
