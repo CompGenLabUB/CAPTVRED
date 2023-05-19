@@ -1,4 +1,4 @@
-<img src="./docs/captvred_logo.png" title="CAPTVRED" alt="CAPTVRED" width="300px" style="align: center;") />
+<img src="./docs/captvred_logo.png" title="CAPTVRED" alt="CAPTVRED" width="350px" align="center" />
 
 CAPTVRED PIPELINE is a pipeline designed to analyse viral NGS data obtained from targeted sequencing. More specifically, targeted sequencing with a set of probes designed based on a set of reference genomic sequences of interest. This pipeline provides a set of analysis for the viral identification and discovery through alignment, assembly and taxoniomic classification of the data. It is assumed that the proves were designed basedon the reference set  with the aim to find this sequences and other alike sequences.
 
