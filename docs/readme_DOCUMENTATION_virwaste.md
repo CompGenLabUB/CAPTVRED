@@ -1,47 +1,11 @@
-<style>
-body { counter-reset: h1counter h2counter h3counter h4counter h5counter h6counter; }
-
-h1 { counter-reset: h2counter; }
-h2 { counter-reset: h3counter; }
-h3 { counter-reset: h4counter; }
-h4 {}
-
-pre {
-  background-color: #CCCCCC;
-}
-
-h1:before {
-    counter-increment: h1counter;
-    content: counter(h1counter) ".\0000a0\0000a0";
-}
-
-h2:before {
-    counter-increment: h2counter;
-    content: counter(h1counter) "." counter(h2counter) ".\0000a0\0000a0";
-}
-
-h3:before {
-    counter-increment: h3counter;
-    content: counter(h1counter) "." counter(h2counter) "." counter(h3counter) ".\0000a0\0000a0";
-}
-
-h4:before {
-    counter-increment: h4counter;
-    content: counter(h1counter) "." counter(h2counter) "." counter(h3counter) "." counter(h4counter) ".\0000a0\0000a0";
-}
-
-
-</style>
-
 # Introduction
 
 # Run the pipeline
 
-## Use the github link
+## Use the GitHub link
 
-In this case you have to download the *projectvars.sh* file and, if necessary, 
-the configuration file ( *nextflow.config* ). 
-En omplir el projectvars pots deixar la variable $NXFDIR empty. __!! REVISAR !!__
+In this case, you have to download the *projectvars.sh* file and, if necessary, 
+the configuration file ( *nextflow.config* ).In this case, $NXFDIR variable will not be used, so you can leave it empty.
 
 ```{.sh}
 
@@ -49,7 +13,7 @@ En omplir el projectvars pots deixar la variable $NXFDIR empty. __!! REVISAR !!_
 
 ## Download and install manually the pipeline
 
-Descarregar tot el repository de github.
+Descarregar tot el repository de GitHub.
 
 ```{.sh}
 
@@ -64,7 +28,7 @@ Descarregar tot el repository de github.
 
 A tabular file containing information about the samples is necessary to 
 run the pipeline (only the samples described in this tabular file will 
-be analysed). This file has been written manually, it must be named 
+be analyzed). This file has been written manually, it must be named 
 "samples_definition.tbl" and has the following format:
 
 ```
@@ -73,14 +37,14 @@ R01_C09_G01	G1_C_S9	Illumina	PE	Bat_guano	Capture	Sample 9 desc
 R01_C10_G02	G2_C_S10	R01_C10_G02	Illumina	PE	Bat_guano	Capture	Sample 10 desc
 ```
 
-Only the first two columns are used in the pipeline, but it is recomended 
-to add some metadata information in the tabular file for further data visualisations.
-Illumina ID is the identifiers given in the samples files and corresponds 
+Only the first two columns are used in the pipeline, but it is recommended 
+to add some metadata information in the tabular file for further data visualizations.
+Illumina ID is the identifier given in the samples files and corresponds 
 exactly to the first part of the fasta file name (i.e.: followed by R{1,2}_001.fastq.gz). 
 Sample ID corresponds to the sample identifier that will be used in all the pipeline steps.
 (In the first step of the pipeline (reads cleaning), the names are 
 changed in such a way that raw reads keep their original ID while clean reads (and 
-everything that comes after) is renamed into de sample ID.) 
+everything that comes after) are renamed into de sample ID.) 
 If you are not interested in modifying the ids, use the same code in both columns.
 
 ## Input data:
@@ -90,10 +54,10 @@ same directory (see section 1.2).
 
 It is assumed that input sequence files are paired files named following
 a pattern. The root name for each sample must be described in the [data summary](#data-summary),
-the pattern for the suffix refering to each pair of reads must be described
+and the pattern for the suffix referring to each pair of reads must be described
 in the [ *projectvars.sh* file](#projectvarssh-file).
 
-i.e. if you set of samples is:
+e.g. if your set of samples is:
 
 ```
 sample_AA_april_2021_r01.fastq.gz
@@ -111,11 +75,11 @@ sample_A    sample_AA_april_2021
 sample_B    sample_bb_april_2021
 sample_C    sample_C_april2021
 ```
-In this manner you simplify and standarize the name of the files generated 
+In this manner, you simplify and standardize the name of the files generated 
 all along the pipeline. 
 
-And, finally, you sould define pattern in the projectvars as `R1="_r01"`, since this
-is the pattern for the fist file of each pair, and `R1="_r02"`, since this
+And, finally, you should define pattern in the projectvars as `R1="_r01"`, since this
+is the pattern for the first file of each pair, and `R1="_r02"`, since this
 is the pattern for the second file of each pair.
 
 
@@ -125,24 +89,24 @@ __Tabular info file__  __!!! REVISAR !!!__<br />
 Descriptive tabular file including the NCBI id, full name, short name and 
 taxon ID for each of the reference sequences in the reference set.  
 
-camps= ##Famlily	Specie	Host	SeqID	Region	Size	Name	decription
+camps= ##Famlily	Specie	Host	SeqID	Region	Size	Name	Description
 ```
 ```
 
 __Fasta file__  <br />
 Fasta file containing the reference sequences. Identifier must be the NCBI ID 
 and optionally other information (separated with a space!). 
-This sequences will be used as reference database for alignments (performed 
+These sequences will be used as reference database for alignments (performed 
 with bowtie for the reads and blast for the contigs) and for the taxonomic 
 classification (see "Kaiju databases"  subsection).
 
 
 __GFF files__  __!! REVISAR !!__<br />
-A separated GFF file 
-This files can be obtained by getting the genebank information of the genmome, 
+A separate GFF file 
+These files can be obtained by getting the genebank information of the genome, 
 extracting the gff3 and selecting the coding regions.
 
-This is the command we used to fetch our gff sequences:
+This is the command we used to fetch our _gff_ sequences:
 ```{.sh}
 gawk '{ print $1 }' Viral_candidates_zoonosis_refseqs_idrelation.tsv | \
   while read n;
@@ -159,14 +123,14 @@ gawk '{ print $1 }' Viral_candidates_zoonosis_refseqs_idrelation.tsv | \
                                > $n.feats.gff;
     }; done
 ```
-Where _Viral_candidates_zoonosis_refseqs_idrelation.tsv_ is the tabular
-file mentioned in previous subsection.
+Where _Viral_candidates_zoonosis_refseqs_idrelation.tsv_ is the tabular info file mentioned in the [previous subsection](#reference-sequences).
 
 __Kaiju Databases__ <br />
 
-Taxonomic classification with kaiju is performed with multiple kaiju 
-databases. By default the virwaste pipeline runs the taxonomic analysis 
-on 5 diferent databases: nr_euk, refseq, viruses, rvdb and a database 
+Taxonomic classification with kaiju is performed by default using the RVDB database as default. 
+However, it can be changed from 
+databases. By default, the CAPTVRED pipeline runs the taxonomic analysis 
+on 5 different databases: nr_euk, refseq, viruses, rvdb, and a database 
 created with the set of amplicon reference sequences (named capref).
 
 In the Kaiju documentation, the instructions to download the availabe
@@ -280,7 +244,7 @@ the quality of these files is subsequently assessed with fastQC and mulitQC prog
 All output files (paired and singleton fastq compressed files and quality 
 reports) are saved in the `$BDIR/cleanseqs` directory.
 
-At this point, the reads identifiers is translated from the ilumina ID to
+At this point, the reads identifiers are translated from the illumina ID to
 the sample ID (see [data summary section](#data-summary)).
 
 **READS CLEANING PARAMETERS**
