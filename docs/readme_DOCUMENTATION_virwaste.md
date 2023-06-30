@@ -318,30 +318,30 @@ This pipeline is developed to support two assemblers: MEGAHIT and TRINITY.
 By default the assembly is performed using megahit, which is notably faster 
 and less resource-consuming.
 
-*CONSIDERATIONS ON TRINIY ASSEMBLIER:  Trinity is a highly resource-consuming
-program and requires higher number of reads than other programs to assembly a contig.
-For this reason the maximum memory allowed for this  is this option is 250G (you 
-can modify this using the parameter* `params.trinityMAXM`. *To avoid the 
-crash of the whole pipeline in the cases when the programme is not able to 
-assembly any contig an exception handler have been added to the trinity module; 
+\*CONSIDERATIONS ON TRINNIY ASSEMBLER:  Trinity is a highly resource-consuming
+program and requires a higher number of reads than other programs to assemble a contig.
+For this reason, the maximum memory allowed for this  is this option is 250G (you 
+can modify this using the parameter *`params.trinityMAXM`*. To avoid the 
+crash of the whole pipeline in the cases when the program is not able to 
+assembly any contig an exception handler has been added to the trinity module; 
 if this happens nextflow will raise a warning, for any further information 
-you will have to look over log files. Please take into account that this pipeline
+you will have to look over the log files. Please take into account that this pipeline
 has been developed to work with environmental samples (from cities sewage), 
-the DNA may be degradated and in some cases trinity may not be able to 
+the DNA may be degraded and in some cases trinity may not be able to 
 assembly any contig.*
 
 * `params.megahit_errorHandler`:
-This paraemeters allows the user to add an error handler in case that 
+This parameter allows the user to add an error handler in the case that 
 megahit crashes. This might happen when the program is not able to 
-assembly any reads, specially in negative controls or degradated samples.
+assemble any reads, especially in negative controls or degraded samples.
 To avoid this, the error handling strategy can be changed to 'ignore' 
 in the configuration file or directly as a CL option.
 
 
 * `params.assemblyMINCONLEN`:
 
-No contigs shorter than this number will be assemblied. The same parameter
-is valid either for megahit or trinity assembliers. Considering the reads
+No contigs shorter than this number will be assembled. The same parameter
+is valid either for megahit or trinity assemblers. Considering the read
 lengths and the origin of the samples, by default, the minimum contig 
 length is set to 100.
 After assembling the contigs, the reads are aligned using the contigs
@@ -381,7 +381,10 @@ false positives and/or low-quality hits have been detected with any other approa
 This parameter refers to the minimum acceptable quality (in phred score format) 
 of the aligned reads when filtering with *samtools*. By default, it is set 
 to 13 (Q=13), which is translated in an error probability of 0.05 
-(E=10<sup>-0.1Q<sup>=10<sup>-1.3<sup>=0.05) or a 95% of accuracy.
+ or a 95% of accuracy.
+<!--
+(E=10<sup>{-0.1}Q<sup>=10<sup>{-1.3}<sup>=0.05)
+-->
 
 More information: 
 * [Bowtie documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml)
