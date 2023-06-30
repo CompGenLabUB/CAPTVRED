@@ -1,28 +1,77 @@
 # Introduction
 
-# Run the pipeline
-
-## Use the GitHub link
-
-In this case, you have to download the *projectvars.sh* file and, if necessary, 
-the configuration file ( *nextflow.config* ).In this case, $NXFDIR variable will not be used, so you can leave it empty.
-
-```{.sh}
-
-```
-
-## Download and install manually the pipeline
-
-Descarregar tot el repository de GitHub.
-
-```{.sh}
-
-```
-
-## Rerun
-
 # Prepare the environment
+You can clone the GitHub repository on your machine or directly launch the pipeline using the GitHub link. 
+## Projectvars.sh file
 
+Includes all environment variables necessary to run the pipeline. When 
+this script is executed the whole directories filesystem is created.
+Every run must have its projectvars.sh inside its base folder.
+
+* Run identifier ($RUNID) is the specific name of the sequencing experiment.  <br />
+* $R1 and $R2, which correspond to the pattern used to describe the first and second pair of
+files respectively. (see [Input Data section](#input-data))
+
+* Root directory ($RDIR) is the top-level directory of the project.
+* Base directory ($BDIR) refers to the root folder where all files created 
+in each of the steps in the pipeline will be stored.
+* Nextflow directory ($NXFDIR) is the directory where CAPTVRED pipeline 
+is stored.
+* Directory that contains the fasta file with the reference sequences and 
+the tabular info file ($AMPSQD). The pipeline will create  bowtie and
+blast databases and indexes of the fasta in this folder. <br />
+* Name of the file containing the amplicon reference sequences ($AMPSQFA).
+Bowtie and blast databases will be created with the same prefix name. <br />
+* Directories where the databases are stored: $BDBD (Blast reference database directory), $AMPSQD (Directory that contains the fasta file of REFSEQS), $KAIDBD(Directory where the kaiju databases are installed).
+
+These variables are set in the _projectvars.sh_ file by the user.
+Recommended filesystem structure would be:
+
+```{=latex}
+    RDIR<br />
+      | - NXFDIR<br />
+      | - BDIR (Run1)<br />
+            | - projectvars.sh<br />
+      |<br />
+      | - BDIR (Run2)<br />
+            | - projectvars.sh<br />
+```
+ 
+After running _projectvars.sh_:
+* fastq.gz files must be placed (or linked) to the directory 
+"$BDIR/rawseqs_fastq"
+* samples_definition.tbl must be placed directly on the $BDIR
+* reference sequences (in fa.gz) format must be placed (or linked) in the REFSEQS directory.
+
+## Configuration file:
+
+The configuration file is named *nextflow.config*, you can find it in the workflow main directory. 
+It contains the default variables used in each of the steps of the pipeline. 
+If you are interested in changing any of the parameters before running the pipeline 
+you can:
+
+> **a) Modify the document**
+All parameters can be modified directly on the configuration file. 
+Preferably, do not modify the filename keep it in the same directory. 
+If you change the filename or directory of the configuration file, or if
+you are running the pipeline using the GitHub link, you can provide the name 
+of the configuration file as a command line argument using the `-params-file` option.
+
+
+> **b) Add the parameter as a command line option**
+
+If you are interested in adjusting only one or a few parameters it might be more
+convenient to provide these options directly as command line options. You can do so 
+by simply writing: `--ParameterOfInterest NewValue`.
+i.e. If you are interested in changing the default number of CPUS to 16 you
+can run the pipeline as follows:
+
+```{.sh}
+nextflow run https://github.com/JosepFAbril/virwaste --NCPUS 16
+```
+
+You can find more information on how to custom and provide the configuration file in the
+ [nextflow config documentation](https://www.nextflow.io/docs/latest/config.html) .
 
 ## Data summary:
 
@@ -32,16 +81,16 @@ be analyzed). This file has been written manually, it must be named
 "samples_definition.tbl" and has the following format:
 
 ```
-#SAMPLE_ID	ILLUMINA_ID	TECHNOLOGY	PAIRED	SAMPLE_FACTOR	METHOD_FACTOR	DESCRIPTION
-R01_C09_G01	G1_C_S9	Illumina	PE	Bat_guano	Capture	Sample 9 desc
-R01_C10_G02	G2_C_S10	R01_C10_G02	Illumina	PE	Bat_guano	Capture	Sample 10 desc
+#SAMPLE_ID	   ILLUMINA_ID	   TECHNOLOGY	  PAIRED	 SAMPLE_FACTOR	  METHOD_FACTOR	   DESCRIPTION
+R01_C09_G01	   G1_C_S9	       Illumina	    PE	     Bat_guano	      Capture	         Sample 9 desc
+R01_C10_G02	   G2_C_S10	       Illumina	    PE	     Bat_guano	      Capture	         Sample 10 desc
 ```
 
 Only the first two columns are used in the pipeline, but it is recommended 
 to add some metadata information in the tabular file for further data visualizations.
-Illumina ID is the identifier given in the samples files and corresponds 
-exactly to the first part of the fasta file name (i.e.: followed by R{1,2}_001.fastq.gz). 
-Sample ID corresponds to the sample identifier that will be used in all the pipeline steps.
+**Illumina ID** is the identifier given in the sample files and corresponds 
+exactly to the root of the raw fastq file name. 
+**Sample ID** corresponds to the sample identifier that will be used in all the pipeline steps.
 (In the first step of the pipeline (reads cleaning), the names are 
 changed in such a way that raw reads keep their original ID while clean reads (and 
 everything that comes after) are renamed into de sample ID.) 
@@ -50,12 +99,12 @@ If you are not interested in modifying the ids, use the same code in both column
 ## Input data:
 
 All samples must be in fastq.gz format. All of them must be placed in the 
-same directory (see section 1.2). 
+same directory. 
 
 It is assumed that input sequence files are paired files named following
 a pattern. The root name for each sample must be described in the [data summary](#data-summary),
 and the pattern for the suffix referring to each pair of reads must be described
-in the [ *projectvars.sh* file](#projectvarssh-file).
+in the [ *projectvars.sh* file](#projectvarssh-file) ($R1 and $R2 variables).
 
 e.g. if your set of samples is:
 
@@ -78,14 +127,14 @@ sample_C    sample_C_april2021
 In this manner, you simplify and standardize the name of the files generated 
 all along the pipeline. 
 
-And, finally, you should define pattern in the projectvars as `R1="_r01"`, since this
+And, finally, you should define the pattern in the projectvars as `R1="_r01"`, since this
 is the pattern for the first file of each pair, and `R1="_r02"`, since this
 is the pattern for the second file of each pair.
 
 
 ## Reference sequences
 
-__Tabular info file__  __!!! REVISAR !!!__<br />
+__Tabular info file__ <br />
 Descriptive tabular file including the NCBI id, full name, short name and 
 taxon ID for each of the reference sequences in the reference set.  
 
@@ -96,7 +145,7 @@ camps= ##Famlily	Specie	Host	SeqID	Region	Size	Name	Description
 __Fasta file__  <br />
 Fasta file containing the reference sequences. Identifier must be the NCBI ID 
 and optionally other information (separated with a space!). 
-These sequences will be used as reference database for alignments (performed 
+These sequences will be used as a reference database for alignments (performed 
 with bowtie for the reads and blast for the contigs) and for the taxonomic 
 classification (see "Kaiju databases"  subsection).
 
@@ -128,86 +177,28 @@ Where _Viral_candidates_zoonosis_refseqs_idrelation.tsv_ is the tabular info fil
 __Kaiju Databases__ <br />
 
 Taxonomic classification with kaiju is performed by default using the RVDB database as default. 
-However, it can be changed from 
-databases. By default, the CAPTVRED pipeline runs the taxonomic analysis 
-on 5 different databases: nr_euk, refseq, viruses, rvdb, and a database 
-created with the set of amplicon reference sequences (named capref).
+However, it can be changed to any other set of sequences. "nr_euk", "refseq" and "viruses" databases are provided ready to use in the [kaiju materials website](https://bioinformatics-centre.github.io/kaiju/downloads.html)
 
-In the Kaiju documentation, the instructions to download the availabe
-source databases and to create a new database from a fasta file 
-(https://github.com/bioinformatics-centre/kaiju). 
+# Run the pipeline
 
-## Projectvars.sh file
-
-Includes all environment variables necessary to run the pipeline. When 
-this script is executed the whole directories filesystem is created.
-Every run must have its projectvars.sh inside its base folder.
-
-* Run identifier ($RUNID) is the especific name of the sequencing experiment.  <br />
-* $R1 and $R2, which corresponds to the pattern used to describe fist and decond pair of
-files respectively. (see [Input Data section](#input-data))
-
-* Root directory ($RDIR) is the top level directory of the project.
-* Base dirctory ($BDIR) refers to the root folder where all files created 
-in each of the steps in the pipeline will be stored.
-* Nextflow directory ($NXFDIR) is the directory where virwaste pipeline 
-is stored.
-* Directory that contains the fasta file with the reference sequences and 
-the tabular info file ($AMPSQD). The pipeline will create  bowtie and
-blast databases and indexes of the fasta in this folder. <br />
-* Name of the file contianing the amplicon reference sequences ($AMPSQFA).
-Bowtie and blast databases will be created with the same prefix name. <br />
-* Directory where the kaiju databases are stored ($KAIDB) each database 
-must be stored in its own directory. __!! REVISAR !!__<br />
-
-This variables are set in the _projectvars.sh_ file by the user.
-Recomended filesystem structure would be:
-
-```{=latex}
-    RDIR<br />
-      | - NXFDIR<br />
-      | - BDIR (Run1)<br />
-            | - projectvars.sh<br />
-      |<br />
-      | - BDIR (Run2)<br />
-            | - projectvars.sh<br />
-```
- 
-After running _projectvars.sh_:
-* fastq.gz files must be placed (or linked) to the directory 
-"$BDIR/rawseqs_fastq"
-* samples_definition.tbl must be placed directly on the $BDIR
-* reference sequences (in fa.gz) format must be placed (or linked) in the refseqs directory.
-
-## Configuration file:
-
-The configuration file is named *nextflow.config*, you can find it in the workflow main directory. 
-It contains the default variables used in each of the steps of the pipeline. 
-If you are interested in changing any of the parameters befor running the pipeline 
-you can:
-
-> **a) Modify the document**
-All parameters can be modified directly on the configuration file. 
-Preferably, do not modify the filename keep it on the same directory. 
-If you change the filename or directory of the configuration file, or if
-you are running the pipeline using the github link, you can provide the name 
-of the configuration file as a commandline argument using the `-params-file` option.
-
-
-> **b) Add the parameter as a commandline option**
-
-If you are interested in adjusting only one or few parameters it might be more
-convinient to provide this options directly as command line options. You can do so 
-by simply writting: `--ParameterOfInterest NewValue`.
-i.e. If you are interested in changing the default number of CPUS to 16 you
-can run the pipeline as follows:
+## Use the GitHub link
 
 ```{.sh}
-nextflow run https://github.com/JosepFAbril/virwaste --NCPUS 16
+nextflow run https://github.com/JosepFAbril/virwaste 
 ```
 
-You can find more information on how to custom and provide the configuration file in the
- [nextflow config documentation](https://www.nextflow.io/docs/latest/config.html) .
+## Download and install manually the pipeline
+
+Descarregar tot el repository de GitHub.
+
+```{.sh}
+nextflow run 
+```
+
+## Rerun
+
+
+
 
 # Detailed description of the pipeline steps
 
