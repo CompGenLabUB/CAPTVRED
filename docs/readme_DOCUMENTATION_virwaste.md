@@ -132,12 +132,11 @@ is the pattern for the second file of each pair.
 ## Reference sequences
 
 __Tabular info file__ <br />
-Descriptive tabular file including the NCBI id, full name, short name and 
+Descriptive tabular file including the NCBI Id, full name, short name and 
 taxon ID for each of the reference sequences in the reference set.  
 
-camps= ##Famlily	Specie	Host	SeqID	Region	Size	Name	Description
-```
-```
+    Camps are: Family, Specie, Host, SeqID, Region, Size, Name, Description
+
 
 __Fasta file__  <br />
 Fasta file containing the reference sequences. Identifier must be the NCBI ID 
