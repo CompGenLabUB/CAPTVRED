@@ -1,7 +1,4 @@
-# Introduction
-
 # Prepare the environment
-You can clone the GitHub repository on your machine or directly launch the pipeline using the GitHub link. 
 ## Projectvars.sh file
 
 Includes all environment variables necessary to run the pipeline. When 
@@ -189,15 +186,18 @@ nextflow run https://github.com/JosepFAbril/virwaste
 
 ## Download and install manually the pipeline
 
-Descarregar tot el repository de GitHub.
+Clone the repository from GitHub
 
 ```{.sh}
-nextflow run 
+nextflow run CAPTVRED [optional parameters] -with-report $RPTDR/Nextflow_execution_report.html
 ```
 
 ## Rerun
+If the pipeline crashes at some point it can continue the execution from the last cached results by using the argument *-resume*.
 
-
+```{.sh}
+nextflow run CAPTVRED [optional parameters] -with-report $RPTDR/Nextflow_execution_report.html -resume
+```
 
 
 # Detailed description of the pipeline steps
@@ -205,37 +205,37 @@ nextflow run
 ## Quality:
 
 Reads quality is performed at four different stages during the pipeline, 
-(1) in the raw reads (before any maniputalion of the data), (2) in the 
-clean reads (after bbduk) and (3) in the filtered reads (after discarding 
+(1) in the raw reads (before any manipulation of the data), (2) in the 
+clean reads (after the cleaning step) and (3) in the filtered reads (after discarding 
 non-viral reads). [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) 
 is run with default parameters. In all three 
-cases the quality assesment is performed using fastQC individually for 
-each file. After that all fastqc reports in the run are summarized in 
+cases, the quality assessment is performed using FastQC individually for 
+each file. All FastQC reports in the run are summarized in 
 a single report using [multiQC](https://multiqc.info/)(v1.9). 
-MultiQC is also used to summarize the bam files quality after alignment of
+MultiQC is also used to summarize the bam files quality after the alignment of
 the reads into the reference sequences using bowtie (see section 2.3).
-In both cases MultiQC is run with default parameters. The final _html_ 
+In both cases, MultiQC is run with default parameters. The final _html_ 
 reports are copied to the reports directory for the final data visualization.
 
-No parameters can be modified in the quality stages of the pipeline.
+No parameters can be modified in the quality stage of the pipeline.
 
 More information:
 * [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) 
 * [MultiQC](https://multiqc.info/)
 
-## Cleaning (+ quality)
+## Cleaning
 
 Reads cleaning is performed using 
 [BBDuk(BBMap version 38.96)](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/), 
-it takes the paired files and process them (always coulpled), it outputs 
+it takes the paired files and processes them (always coupled), and it outputs 
 a pair of mated files (with the suffix *_pe1* and *_pe2* respectively) 
 and also a singletons file (with the suffix *_sgl*). As mentioned above, 
-the quality of these files is subsequently assessed with fastQC and mulitQC programs. 
+the quality of these files is subsequently assessed with FastQC and MulitQC programs. 
 
 All output files (paired and singleton fastq compressed files and quality 
 reports) are saved in the `$BDIR/cleanseqs` directory.
 
-At this point, the reads identifiers are translated from the illumina ID to
+At this point, the reads identifiers are translated from the Illumina ID to
 the sample ID (see [data summary section](#data-summary)).
 
 **READS CLEANING PARAMETERS**
@@ -243,95 +243,68 @@ the sample ID (see [data summary section](#data-summary)).
 * `params.bbdukREF`
 
 By default, the reference file used in the cleaning step contains the reference
-illumina adapters and is given as a BBDUK resource. If you use a different 
-technology and/or adapters, provide them in a comma separated 
+Illumina adapters and is given as a BBDUK resource. If you use a different 
+technology and/or adapters, provide them in a comma-separated 
 file.  
 
 * `params.bbdukMINLEN`
 
-Reads shorter than this after trimming will be discarded, bbduk uses 10 by
+Reads shorter than this after trimming will be discarded, BBDuk uses 10 by
 default, in this pipeline the minlength is set to 32. 
 
 * `params.bbduqMAQ`
 
 Minimum average quality, reads with average quality (after trimming) below 
-this will be discarded. BBDuk, bu default has no theshols value (maq=0), 
-in this pipeline it is set to 10.
+this will be discarded. BBDuk, by default has no threshold value (maq=0), 
+in this pipeline, it is set to 10.
 
 (Remember that you can [modify any of the parameters](#configuration-file) 
-in the config file or directly from the commandline.)
-
+in the config file or directly from the command line.)
 
 More information: [BBDUK guide](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/)
 
 
-## Filter and discard non viral reads
+## Filter and discard non-viral reads
 
 Before mapping or assembling steps, we try to discard reads identified as
-non-viral species (such as euchariotic, archeea or bacterial DNA). To do so, 
+non-viral species (such as eukaryotic, archaea, or bacterial DNA). To do so, 
 a taxonomical classification is performed using [Kaiju](https://kaiju.binf.ku.dk/)(v.1.9.0).
-Paired and single reads are assigned to a taxonomic grup separately and,
-later, merged in a same file to generate a tab-separated summary and a 
-krona plot in html format (you can find this files in `$BDIR/taxonomy/kaiju/"sample_ID"/reads_taxon`). 
-All reads assigned to non-viral are discarded (using seqkit v.0.15.0) and a new set of fastq files 
+Paired and single reads are assigned to a taxonomic group separately and,
+later, merged in the same file to generate a tab-separated summary and a 
+krona plot in HTML format (you can find these files in `$BDIR/taxonomy/kaiju/"sample_ID"/reads_taxon` directory). 
+All reads assigned to non-viral are discarded (using seqkit v.0.15.0) and a new set of FASTQ files 
 is saved in the `$BDIR/cleaneqs` directory with the suffix `*.filtered.fastq.gz`). As mentioned above, 
-the quality of these files is subsequently assessed with fastQC and mulitQC programs. 
+the quality of these files is subsequently assessed with FastQC and MulitQC programs. 
 
 **KAIJU (ON READS) PARAMETERS**
 
 * `.params.kaijuDBRAW`:
 
-The reference database used to assign a taxonomic range to the reads. By 
+The reference database is used to assign a taxonomic range to the reads. By 
 default it is used *nr_euk* database, it can be changed by *refseq* or even by
-a cutomized one. You can find more information about different databases in 
-the [kaiju github repository](https://github.com/bioinformatics-centre/kaiju).
+a customized one. You can find more information about different databases in 
+the [kaiju GitHub repository](https://github.com/bioinformatics-centre/kaiju).
 
 * `params.kaijuMAX_FORKS`, `params.kaijuMAX_RETRIES` and `params.kaijuNCPUS`:
 
-The kaiju is the higher resource-consuming program in the pipeline, when 
-running too many kaiju proccesses in parallel it can lead to a pipeline crash, 
-to avoid so, specific parallelisation parameters are set for the kaju in both reads taxonomy and 
+Kaiju is the higher resource-consuming program in the pipeline, when 
+running too many kaiju processes in parallel the pipeline may crash, 
+to avoid so, specific parallelization parameters are set for the kaju in both reads taxonomy and 
 [contigs taxonomy](#taxonomic-classification). `kaijuMAX_FORKS` 
 refers to the  maximum number of process instances that can be executed 
 in parallel, it is set by default to 4. `kaijuNCPUS` refers to the maximum
 number of CPUs used in this process, it is set to 26 by default. The error 
-strategy is set to "retry" up to 2 times ( `kaijuMAX_RETRIES`). Tou can find more information about 
-directives in [this page of the Nextflow documentation](https://www.nextflow.io/docs/latest/process.html#directives).
+strategy is set to "retry" up to 2 times ( `kaijuMAX_RETRIES`). You can find more information about 
+directives on [this page of the Nextflow documentation](https://www.nextflow.io/docs/latest/process.html#directives).
 
 (Remember that you can [modify any of the parameters](#configuration-file) 
-in the config file or directly from the commandline.)
+in the config file or directly from the command line.)
 
 More information: 
 * Kaiju [documentation](https://kaiju.binf.ku.dk/) and 
 [github repository](https://github.com/bioinformatics-centre/kaiju).
 * Seqkit [documentation](https://bioinf.shenwei.me/seqkit/)
 
-
-## Reads alignment on reference sequences:
-
-The final set of reads is aligned against the set of reference sequences (the
-ones used to designs the capture probes) to see which species were found 
-and what is the coverage. The alignment is performed using the 
-[bowtie2 software (v.2.4.2)]((http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml)) 
-and after [samtools (v.1.1)](http://www.htslib.org/doc/samtools.html) is used to 
-discard unmapped and low quality reads. This step is performed
-separately in paired ends reads and single end reads with the same exact parameters.
-The bowtie is run always with the *end-to-end* alignment mode and *sensitive* 
-presets, this parameters cannot be modified in this pipeline since many 
-false positives and/or low quality hits have been detected with any other approach. 
-
-
-**ALIGNMENT PARAMETERS**
-
-* `params.alignMINQ`
-This parameters refers to the minimum acceptable quality (in phred score format) 
-of the aligned reads when filtering with samtools. By default it is set 
-to 13 (Q=13), which is translated in an error prbability of 0.05 
-(E=10<sup>-0.1Q<sup>=10<sup>-1.3<sup>=0.05) or a 95% of accuracy.
-
-More information: 
-* [Bowtie documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml)
-* [Samtools manual](http://www.htslib.org/doc/samtools.html)
 
 ## Reads assembly:
 
@@ -383,57 +356,43 @@ More information:
 * [Megahit documentation](https://github.com/voutcn/megahit)
 
 
-## Blast of contigs:
-
-Contigs are aligned 
-
-**_Program version:_**
-
-More information: 
 
 ## Taxonomic classification: 
 
-**KAIJU (ON CONTIGS) PARAMETERS**
+### Nucleotide-level classification:
+### Protein-level classification:
 
-* `params.kaijuMAX_FORKS`, `params.kaijuMAX_RETRIES` and `params.kaijuNCPUS`:
+## Reads alignment on reference sequences:
 
-The kaiju is the higher resource-consuming program in the pipeline, when 
-running too many kaiju proccesses in parallel it can lead to a pipeline crash, 
-to avoid so, specific parallelisation parameters are set for the kaju in both [reads taxonomy](#filter-and-discard-non-viral-reads) and 
-contigs taxonomy. `kaijuMAX_FORKS` 
-refers to the  maximum number of process instances that can be executed 
-in parallel, it is set by default to 4. `kaijuNCPUS` refers to the maximum
-number of CPUs used in this process, it is set to 26 by default. The error 
-strategy is set to "retry" up to 2 times ( `kaijuMAX_RETRIES`). Tou can find more information about 
-directives in [this page of the Nextflow documentation](https://www.nextflow.io/docs/latest/process.html#directives).
+The final set of contigs is aligned against the set of reference sequences (the
+ones used to design the capture probes) to see which species were found 
+and what is the coverage. The alignment is performed using the 
+[bowtie2 software (v.2.4.2)]((http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml)) 
+and after [samtools (v.1.1)](http://www.htslib.org/doc/samtools.html) is used to 
+discard unmapped and low quality reads. This step is performed
+separately in paired ends reads and single-end reads with the same exact parameters.
+The bowtie is run always with the *end-to-end* alignment mode and *sensitive* 
+presets, these parameters cannot be modified in this pipeline since many 
+false positives and/or low-quality hits have been detected with any other approach. 
 
 
-(Remember that you can [modify any of the parameters](#configuration-file) 
-in the config file or directly from the commandline.)
+**ALIGNMENT PARAMETERS**
+
+* `params.alignMINQ`
+This parameter refers to the minimum acceptable quality (in phred score format) 
+of the aligned reads when filtering with *samtools*. By default, it is set 
+to 13 (Q=13), which is translated in an error probability of 0.05 
+(E=10<sup>-0.1Q<sup>=10<sup>-1.3<sup>=0.05) or a 95% of accuracy.
 
 More information: 
+* [Bowtie documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml)
+* [Samtools manual](http://www.htslib.org/doc/samtools.html)
 
-* 
-* 
-
+<!--
 ## Figures
 
 **Mapped reads summary**
-
 **Coverage Figures**
-
-**KronaPlots**
-<!--
-Besides the aligned and filtered bam files, this step also produces some summary
-plots showing the profile of each sample: A barplot containing the counts of reads 
-aligned to each reference sequence is saved in the reports directory and a coverage figure
-
-els outputs d'aquest pas son: coverage figures (see assembly) i 
-uns barplots que ens diran quants reads han mapat a cada genoma per mostra (diferenciarem pe de sgl).
--->
-
-<!--
-els grafics daquest pas son: els coverage plots: explicar + posar un exemple.
 -->
 
 # Dependencies:
