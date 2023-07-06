@@ -84,7 +84,7 @@ __f.__ Place (or link) the raw fastq files to the "rawseqs_fastq" directory.<br 
 __g.__ Filesystem is ready to run the pipeline.<br />See parameters.
 ```{.sh}
 nextflow $NXFDIR/main.nf -with-report $RPTDR/Nextflow_execution_report.html
-``
+```
 
 ## Data:
 * The data for the test set is provided in the following [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz). The folder contains 15 test samples (3 real metagenomics samples and 12 synthetic samples), and the script used for data generation.
