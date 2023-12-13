@@ -13,142 +13,88 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Getopt::Long;
-use global qw( :Counter );
+#use global qw( :Counter );
 $global::_verbose{RAW} = 1;
-$_cntN = 50000;
 my $debug = 0; 
 my $sampid;
-my $datab_info; # = $ARGV[0];
-my $blastcov;  # = $ARGV[1];
-my $clas_ids;  # = $ARGV[2];
-my $unclas_ids;  # = $ARGV[3];
-my $out_prefix;  # = $ARGV[4];
-my $mincov;
-my $petbl;   ## Tabular file obtained with samtools idxstats: each row is a contig, 3rd column is #pe-reads mapped 
-my $setbl;   ## Tabular file obtaiden with samtools idxstats: each row is a contig, 3rd column is #se-reads mapped 
+my $kainames; 
+my $out_prefix;  
+
 
 GetOptions (
-    'samp=s'              =>\$sampid,
-    'i|db_info=s'       => \$datab_info,
-    'B=s'               => \$blastcov,
-    'mincov:i'          => \$mincov,
-    'c|class_ids:s'     => \$clas_ids,
-    'u|unclass_ids:s'   => \$unclas_ids,
+    'samp=s'            =>\$sampid,
+    'K=s'               => \$kainames,
     'o|out_prefix=s'    => \$out_prefix,
-    'pe=s'              => \$petbl,
-    'sg=s'              => \$setbl,
     'debug'             => sub { $debug = 1 } 
 );
 
 
 my %tids   = ();   #Targets info Hash (HoL)
-my %qids   = ();   #Queries info Hash (HoL)
-my %rids   = ();   #Refseqs - contigs relation Hash (HoL)  
-                     #%rids = { refseq1=[contig1, ..., contigN], refseq1=[contig1, ..., contigN], ...  }
-#my %kids   = ();
-my %specs   = ();   #Species info Hash (HoL)
-#my %tcount = ();
-my %kcount = ();
-#my %bcount = ();
-my %apf = ();   #Approach used to found the hit (Kaiju or blast) + score. (HoL)  %apf={ contig1=[ "K", score], contig1=[ "B", "NA"] } 
+my$totrds = 0;
+my $totspecs = 0;
 
-# 3 dicts used structure will be:
-  #%qids={ contig ID = [length, BestHitlen, BestHitCoverage, Reference sequence, taxon_approach], ContigID2 =[...], ... }
-
-defined($mincov) || ($mincov=70);
-my $ci=defined($clas_ids) ? $clas_ids : "Not provided";
-my $ui=defined($unclas_ids) ? $unclas_ids : "Not provided";
-my $pf=defined($petbl) ? $petbl : "Not provided";
-my $sf=defined($setbl) ? $setbl : "Not provided";
-
+print STDERR "#   STARTING... SAMPLES ID is $sampid   #  \n";
 print STDERR "\n=========================================\n";
 print STDERR "### RUNNING PARAMS ###  \n";
 print STDERR "=========================================\n";
-print STDERR "DB  info  file:\t$datab_info\n";
-print STDERR "Coverage  file:\t$blastcov\n";
-print STDERR "Min.  coverage:\t$mincov\n";
-print STDERR "Class. ids  fl:\t$ci \n";
-print STDERR "Unc.  ids   fl:\t$ui \n";
-print STDERR "#pe-reads map :\t$pf\n";
-print STDERR "#se-reads map :\t$sf\n";
+print STDERR "Kaiju outfile:\t$kainames\n";
 print STDERR "Outfile prefix:\t$out_prefix\n";
 print STDERR "=========================================\n\n";
 
-# --------------------------------- Under construction ----#
-if (defined($clas_ids)){
-    print STDERR "### READING CLASSIFIED IDS FILE\n";
-    my @inf;
-    open(CL, $clas_ids);
-    while (<CL>) {
-        chomp;
-        # @inf=  ["K", "NA"];
-        # $apf{$_} = $@inf;
-        @apf{$_} = ["K", "NA"];  #"NA" must be substituted by kaiju score
-    }
-    close(CL);
-}
 
-if (defined($unclas_ids)){
-    print STDERR "### READING UNCLASSIFIED IDS FILE\n";
-    open(UC, $unclas_ids);
-    while (<UC>) {
-        chomp;
-        # @inf= ["B", "NA"];
-        # $apf{$_} = $@inf;
-        @apf{$_} = ["B", "NA"];
-    }
-    close(UC);
-}
-# -------------------------- End of Under construction ----#
 
-my %rcounts = ();
-if (defined($petbl)){
-    print STDERR "### READING MAPPED PE READS FILE\n";
-    my @info;
-    open(PE, $petbl);
-    while (<PE>) {
-        next if /^\s*$/o;
-        chomp;
-        @info = split /\t/o, $_;
-        if (exists($rcounts{$info[0]})) {
-            print STDERR "# WARNING # $info[0] is already there...\n";
-        } else {
-            $rcounts{$info[0]} = 0;
-        };
-        $rcounts{$info[0]} += $info[2];
-    }
-    close(PE);
-}
-
-if (defined ($setbl)){
-    print STDERR "### READING MAPPED SE READS FILE\n";
-    my @info;
-    open(SE, $setbl);
-    while (<SE>) {
-        next if /^\s*$/o;
-        chomp;
-        @info = split /\t/o, $_;
-        exists($rcounts{$info[0]}) || ($rcounts{$info[0]} = 0);
-        $rcounts{$info[0]} += $info[2];
-    }
-    close(SE);
-}
-
-print STDERR Dumper \%rcounts if $debug;
-
-## Process blast coverage out file to get info by sequence and complete info by genome.
-print STDERR "### READING BLAST COVERAGE FILE\n";
-open(COV, $blastcov);
-$c = "B"; $n = 0;
-# my %qrcnts;    # n reads maped in each query
-while (<COV>) {
+print STDERR "### READING INFILE AND WRITING BY READ\n";
+## Process kaiju names.out file to get info by sequence and taxon.
+open(NMS, $kainames);
+open(SOUT, ">", join( "_", $out_prefix, "taxonomysum_byread.tbl" ));
+print SOUT "CONTIG_ID\tTAXON_ID\tSPECIES\tFAMILY\tKAIJU_SCORE";
+while (<NMS>) {
     next if /^\s*$/o;
     chomp;
-    my (@obs, $cid, $rf, $tag, $ks, $nrd, @t, @r);
+    my (@obs, @tax, $cid, $tid, $sco, $fam, $spc);
     @obs = split /\t/o, $_;
-    $cid = $obs[1];
 
-    if ( $obs[0] eq "Q" ) {
+    $obs[0] eq "C" || next;
+    $cid = $obs[1];
+    $tid = $obs[2];
+    $sco = $obs[3];
+    @tax = split /;\s|;/o, $obs[7];
+    $fam = $tax[1];
+    $spc = $tax[2];
+
+
+    $totrds ++;
+    print SOUT "$cid\t$tid\t$spc\t$fam\t$sco\n";
+    if ( exists($tids{$tid}) ) {
+
+        $tids{$tid}[2] +=1;
+        $tids{$tid}[3] = "$tids{$tid}[3];$cid";
+
+    } else {
+
+        $tids{$tid} = [$spc, $fam, 1, $cid];
+
+    }
+}
+close(SOUT);
+
+print STDERR "### WRITTING BY TAXON\n";
+open(QOUT, ">", join( "_", $out_prefix, "taxonomysum_bytaxon.tbl" ));
+foreach my $i (keys %tids){
+    print QOUT join("\t", $i, @{$tids{$i}}), "\n";
+    $totspecs ++;
+}
+close(QOUT);
+
+print STDERR "### WRITTING STATS\n";
+open(STSOUT, ">", join( ".", $out_prefix, "stats.out" ));
+printf STSOUT "SAMPId:$sampid\tNREADS:$totrds\tNSPECS:$totspecs\n";
+close(STSOUT);
+
+exit(0);
+
+=comment
+    if ( $obs[0] eq "C" ) {
 
          #Query lines -> Save in hash:
          #%qids={ contig ID = [length, BestHitlen, BestHitCoverage, Reference sequence, taxon_approach, #reads], ContigID2 =[...], ... }
@@ -159,6 +105,7 @@ while (<COV>) {
          $tag = (defined($clas_ids) ? $apf{$cid}[0] : "B");
          $ks  = (defined($clas_ids) ? $apf{$cid}[1] : "NA");
          #exists ($rcounts{$obs[1]}) || ($rcounts{$obs[1]} = 1);  ## singletons
+
          $nrd = (exists($rcounts{$cid}) ? $rcounts{$cid} : 1);
          $qids{$cid} = [ $tag, $obs[2], $obs[11], $obs[12], $rf, $ks, $nrd ];
                      #  0.TAG   1.len   2.BHlen   3.BHCov  4.RefSqId  5.KaiScore  6.n.reads 
@@ -389,3 +336,4 @@ open(STSOUT, ">", join( ".", $out_prefix, "stats.out" ));
 printf STSOUT "SAMPId:$sampid\tNREADS:$totrds\tNSEQS:$totsqs\tNSPECS:$totspecs\n";
 close(STSOUT);
 exit(0);
+=end

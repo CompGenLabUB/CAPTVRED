@@ -21,7 +21,7 @@ process megahit_assembly_all {
         """
         [ -d ${odir} ] && rm -r ${odir};
         ## 1 ## Assembly reads into contigs:
-        megahit  -t ${params.NCPUS}  --presets meta-large \
+        megahit  -t ${params.NCPUS}  --presets meta-large     \
             -1 ${pe1} -2 ${pe2}  -r ${sgle}                   \
             --min-contig-len ${params.assemblyMINCONLEN}      \
             --out-dir ${odir} --out-prefix ${sp_root}         \

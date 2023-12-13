@@ -4,11 +4,17 @@ include { bbduk_clean; samps_idtranslate } from './rawfq_clean.nf'
 include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
 include { megahit_assembly_all; metaspades_assembly} from './reads_assembly.nf'
-include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn;  do_blast_kaiju; do_tblastx; best_reciprocal_hit; merge_blast_outs; blast_sum_coverage; do_cov_onrefseqs } from './contigs_align.nf'
-include { kaiju_raw; discard_nonviral; kaiju_contigs; extract_ids; taxonid_to_fasta;  readid_to_fasta} from './taxonomy.nf'
+include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn; do_tblastx; best_reciprocal_hit; blast_sum_coverage; do_cov_onrefseqs } from './contigs_align.nf'
+include { kaiju_raw; discard_nonviral; kaiju_contigs; extract_ids  } from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
 include { handle_contamination_pr } from './contamination.nf'
 include { fill_html_report; make_summary_tbl } from './sum_and_report.nf'
+
+/* THE DISCARDED:
+include { do_blast_kaiju; merge_blast_outs } from './contigs_align.nf'
+include { taxonid_to_fasta; readid_to_fasta }from './taxonomy.nf'
+*/
+
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
 SamplesDef.eachLine {
@@ -164,7 +170,8 @@ workflow amplicon_sequences_dbinit() {
       refseqs
 
     main:
-      generate_index_bowtie(x,refseqs)
+      //generate_index_bowtie(x,refseqs)
+      generate_index_bowtie(refseqs)
       
     emit:
       generate_index_bowtie.out
@@ -202,8 +209,7 @@ workflow align_summary() {
 
      multiQC_bowtie_amp(BAMLIST)
      align_counts_plot(BAMLIST)
-    
-    
+        
 }
 
 
@@ -325,7 +331,7 @@ workflow vizualise_results_flow() {
 
 
 
-workflow direct_blast () {
+workflow direct_blast_n () {
     take:
         ref_fasta
         all_contigs
@@ -335,7 +341,7 @@ workflow direct_blast () {
         //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
 
         make_db_for_blast( ref_fasta, "FALSE") 
-        do_blastn(all_contigs, make_db_for_blast.out.DB, params.taxslowdir)
+        do_blastn(all_contigs, make_db_for_blast.out.DB, params.taxbndir)
         
         if (params.handle_contamination == true ) {
             handle_contamination_pr( params.cids, 
@@ -350,14 +356,56 @@ workflow direct_blast () {
         }
         
         blast_sum_coverage(blastOut, "F", "F" )
-        blast_byread=blast_sum_coverage.out.BYR
+        // blast_byread=blast_sum_coverage.out.BYR
         
     emit:
-        REP=blast_byread
+        // REP=blast_byread
+        BY_R=blast_sum_coverage.out.BYR
+        BY_SQ=blast_sum_coverage.out.BYSQ
+        BY_SP=blast_sum_coverage.out.BYSP
+        S_SUM=blast_sum_coverage.out.SUM
         CFA=all_contigs
-        DONE=blast_byread
+        DONE=blast_sum_coverage.out.SUM2
 }
 
+workflow direct_blast_tx () {
+    take:
+        ref_fasta
+        all_contigs
+    main:
+        
+        //readid_to_fasta(unaligned_ids)
+        //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
+
+        make_db_for_blast( ref_fasta, "FALSE") 
+        do_tblastx(all_contigs, make_db_for_blast.out.DB, params.taxtbxdir)
+        
+        if (params.handle_contamination == true ) {
+            handle_contamination_pr( params.cids, 
+                                     params.cfaa, 
+                                     do_tblastx.out.OUT,
+                                     do_tblastx.out.CONTIGS )
+                                     
+            blastOut=handle_contamination_pr.out
+        } else {
+        
+            blastOut=do_tblastx.out.OUT
+        }
+        
+        blast_sum_coverage(blastOut, "F", "F" )
+        // blast_byread=blast_sum_coverage.out.BYR
+        
+    emit:
+        // REP=blast_byread
+        BY_R=blast_sum_coverage.out.BYR
+        BY_SQ=blast_sum_coverage.out.BYSQ
+        BY_SP=blast_sum_coverage.out.BYSP
+        S_SUM=blast_sum_coverage.out.SUM
+        CFA=all_contigs
+        DONE=blast_sum_coverage.out.SUM2
+}
+
+/*
 workflow unc_contigs_blast (){
     take:
         uncids
@@ -375,19 +423,20 @@ workflow unc_contigs_blast (){
             
         make_db_for_blast(ref_fa, "FALSE")
         //  make_db_for_blast.out.DB.view()
-        do_blastn(readid_to_fasta.out.FA, make_db_for_blast.out.DB, params.taxfastdir)
+        do_tblastx(readid_to_fasta.out.FA, make_db_for_blast.out.DB, params.taxfastdir)
        // blast_sum_coverage(do_blastn.out, uncids )
        // blast_rpt=blast_sum_coverage.out.TBL
        // stillunc=blast_sum_coverage.out.UNIDS
        
     emit:
           SP=sp
-          BLOUT=do_blastn.out
+          BLOUT=do_tblastx.out
          // tuple sp, val(do_blastn.out)
          
 }
+*/
 
-workflow class_contigs_blast (){
+/* workflow class_contigs_blast (){
     take:
         clids
         taxids
@@ -411,9 +460,9 @@ workflow class_contigs_blast (){
     emit:
         BLOUT=do_blast_kaiju.out
 
-}
+} */
 
-workflow all_contigs_blast (){
+/* workflow all_contigs_blast (){
     take:
       kaijuout
         
@@ -436,7 +485,7 @@ workflow all_contigs_blast (){
     emit:
         ""
 
-}
+} */
 
 workflow coverage_onrefseqs() {
     
@@ -488,7 +537,7 @@ workflow {
         tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
         generate_index_bowtie(tobowtie)
         amplicon_sequences_align(generate_index_bowtie.out, reads_filter_nonviral.out)
-   //     align_summary(amplicon_sequences_align.out.ALL)
+    //    align_summary(amplicon_sequences_align.out.ALL)
     
     // 4 // Assembly reads into contigs // //
     
@@ -505,42 +554,86 @@ workflow {
     
     // 5 // Taxonomic classification of contigs // //
         
-        if (params.taxonfast == true ) {
+        if (params.taxalg ==~ /(?i)KAIJU/ ) {
             // 5.1. FAST APPROACH// 
               // 5.1.1. Protein-level classification (KAIJU) //
-            KCDB=Channel.from(params.kaijudbs)
+            KCDB=Channel.from(params.kaijudb)
+            KCDB.view()
             to_kaiju_contigs=KCDB.combine(CNFA.merge()).merge()
             kaiju_contigs(to_kaiju_contigs)
-            kaiout=kaiju_contigs.out.filter{it.contains(params.blastfastdb)}.flatten()
-            kaiout.view()
-            all_contigs_blast(kaiout)
-            
-            
-        //    kaiout2=kaiju_contigs.out.buffer{it.contains(params.blastfastdb)}
+            kaiju_summarize(kaiju_contigs.out.NM)
+        //    kaiout=kaiju_contigs.out.filter{it.contains(params.blastfastdb)}.flatten()
+        //    kaiout.view()
         //    all_contigs_blast(kaiout)
-            
-       //     kaiju_contigs.out.branch{ b1: it.contains(params.blastfastdb) }
+                     
+                       
+            blOUT=""                   
+            covOUT=""
+            byreadfl=kaiju_summarize.out.BYR
+            byseqfl=kaiju_summarize.out.BYSQ
+            byspecfl=""
+            statssum=kaiju_summarize.out.SUM
+            kronaPT=to_kaiju_contigs.out.KP
 
+            FIN=kaiju_summarize.out.DONE.collect()
           
-        }
-         
-         if (params.taxonslow == true ){
-            // 5.2. SLOW APPROACH// 
-                // 5.2.1 Directly blast into database //
+        } else if (params.taxalg ==~ /(?)BLASTN/ ){
+            //Directly blast into database //
             ref_fa="${params.blast_refseqs_dir}/${params.blast_ref_db_name}";
             // blast_flow( ref_fa, CNFA.merge())
 
             // direct_blast(ref_fa, CNFA.merge())
-            direct_blast(ref_fa, CNFA)
-            FIN=direct_blast.out.DONE.collect()
+            direct_blast_n(ref_fa, CNFA)
             
-            coverage_onrefseqs(direct_blast.out.CFA, 
-                               direct_blast.out.REP
-                              )
+             if ( params.general_only == false) {
+                  coverage_onrefseqs(direct_blast.out.CFA, 
+                                     direct_blast.out.REP
+                                    )
+                  blOUT=coverage_onrefseqs.out.blastout                   
+                  covOUT=coverage_onrefseqs.out.coverage
+             } else {
+                  blOUT=""                   
+                  covOUT=""
+             }
+            
+            byreadfl=direct_blast_n.out.BY_R
+            byseqfl=direct_blast_n.out.BY_SQ
+            byspecfl=direct_blast_n.out.BY_SP
+            statssum=direct_blast_n.out.S_SUM
+            kronaPT=""     
+
+            FIN=direct_blast_n.out.DONE.collect()           
            
+         } else if (params.taxalg ==~ /(?)TBLASTX/ ){
+
+            // Directly blast into database //
+            ref_fa="${params.blast_refseqs_dir}/${params.blast_ref_db_name}";
+            // blast_flow( ref_fa, CNFA.merge())
+
+            // direct_blast(ref_fa, CNFA.merge())
+            direct_blast_tx(ref_fa, CNFA)
+            
+            if ( params.general_only == false) {
+                  coverage_onrefseqs(direct_blast.out.CFA, 
+                                     direct_blast.out.REP
+                     )
+                  blOUT=coverage_onrefseqs.out.blastout                   
+                  covOUT=coverage_onrefseqs.out.coverage
+            } else {
+                  blOUT=""                   
+                  covOUT=""
+            }
+            
+            byreadfl=direct_blast_tx.out.BY_R
+            byseqfl=direct_blast_tx.out.BY_SQ
+            byspecfl=direct_blast_tx.out.BY_SP
+            statssum=direct_blast_tx.out.S_SUM
+            kronaPT=""
+
+            FIN=direct_blast_tx.out.DONE.collect()
          }
 
-    
+/*  SILENCIAT TEMPORALMENT PER PROVES!!!!!!!!!!!!!!!!!!!  
     // 6 // Reporting results
     
         // 6.1. // Summary tables // //
@@ -552,8 +645,9 @@ workflow {
         vizualise_results_flow(
                        amplicon_sequences_align.out.PE,
                        amplicon_sequences_align.out.SG,
-                       coverage_onrefseqs.out.blastout,
-                       coverage_onrefseqs.out.coverage)
+                       blOUT,
+                       covOUT
+                       )
         
         // 6.3. // HTML report. 
         fill_html_report(make_summary_tbl.out)
@@ -565,6 +659,8 @@ workflow {
             // blast_unc_x_cl.RPT
             // blast_unc_x_cl.out.RPT
             
+*/
+
 }
 
 workflow.onComplete {

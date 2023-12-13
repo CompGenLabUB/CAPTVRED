@@ -66,7 +66,7 @@ process do_blastn {
        spid=query.toString().split('/')[-1].split('[.]')[0]
        blast_q=query.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
        blast_r=rdb.toString().split('/')[-1]
-       blast_algn="${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
+       blast_algn="${blast_q}_ON_${blast_r}.BLASTN.tbl"
        blast_dir="${out_dir}/${spid}"
        dbindex="${rdb}.nin";
        """
@@ -104,7 +104,7 @@ process do_blastn {
 
 }
 
-process do_blast_kaiju {
+/* process do_blast_kaiju {
 
     input:
         val query // with whole path
@@ -125,7 +125,7 @@ process do_blast_kaiju {
        blast_dir="${out_dir}/${spid}"
        dbindex="${rdb}.nin";
        """
-       echo "BLASTN $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
+       echo "TBLASTX $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
        echo "$dummy";
         if [ -d $blast_dir ]; then 
                 echo "$blast_dir"; 
@@ -159,43 +159,60 @@ process do_blast_kaiju {
        """
 
 }
-
+ */
 
 process do_tblastx {
 
     input:
         val query // with whole path
-        val db // with whole path
+        val rdb // with whole path
+        val out_dir // output directory
         
     output:
-        val "${blast_dir}/${blast_algn}"
+        val "${blast_dir}/${blast_algn}", emit:OUT
+        val "${query}", emit: CONTIGS
         
     script:
 
+       spid=query.toString().split('/')[-1].split('[.]')[0]
        blast_q=query.toString().split('/')[-1].replaceAll(/.gz$/, "").replaceAll(/.fa$/, "")
        blast_r=db.toString().split('/')[-1]
-       blast_algn="${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
-       blast_dir=params.contigs_blast_dir
+       blast_algn="${blast_q}_ON_${blast_r}.TBLASTX.tbl"
+       blast_dir="${out_dir}/${spid}" //params.contigs_blast_dir
+       dbindex="${rdb}.nin";
        
        """
-        if [[ \$(echo ${query}) =~ .gz\$ ]]; then
-          gzip -dc ${query} |\
-             tblastx -query  -  -db ${db}          \
-              -out ${blast_dir}/${blast_algn}    \
-              -num_alignments 1 -perc_identity 50              \
-              -evalue 10e-10   -subject_besthit           \
-              -outfmt \"${params.bl_outfmt}\"    \
-              -num_threads ${params.NCPUS}       \
-               2> ${blast_dir}/${blast_algn}.log;
-        else
-          tblastx -query ${query} -db ${db}          \
-              -out ${blast_dir}/${blast_algn}    \
-              -num_alignments 1 -perc_identity 50              \
-              -evalue 10e-10      -subject_besthit       \
-              -outfmt \"${params.bl_outfmt}\"    \
-              -num_threads ${params.NCPUS}       \
-               2> ${blast_dir}/${blast_algn}.log;
+        #echo "TBLASTX $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
+        if [ -d $blast_dir ]; then 
+                echo "$blast_dir"; 
+            else 
+                mkdir $blast_dir; 
         fi;
+
+        
+        if [[ -e ${dbindex} ]]; then
+            if [[ \$(echo ${query}) =~ .gz\$ ]]; then
+                gzip -dc ${query} |\
+                    tblastx -query  -  -db ${db}          \
+                    -out ${blast_dir}/${blast_algn}    \
+                    -num_alignments 1 -perc_identity ${params.blast_pident}               \
+                    -evalue ${params.blast_eval}   -subject_besthit           \
+                    -outfmt \"${params.bl_outfmt}\"    \
+                    -num_threads ${params.NCPUS}       \
+                    2> ${blast_dir}/${blast_algn}.log;
+            else
+                tblastx -query ${query} -db ${db}          \
+                    -out ${blast_dir}/${blast_algn}    \
+                    -num_alignments 1 -perc_identity 50              \
+                    -evalue 10e-10      -subject_besthit       \
+                    -outfmt \"${params.bl_outfmt}\"    \
+                    -num_threads ${params.NCPUS}       \
+                    2> ${blast_dir}/${blast_algn}.log;
+            fi;
+        else
+            echo "No database found for blast." \
+                 > ${blast_dir}/${blast_algn}.log;
+        fi
                
        """
 
@@ -235,7 +252,7 @@ process best_reciprocal_hit {
     }
 }
 
-process merge_blast_outs {
+/* process merge_blast_outs {
     input: 
         val(bl1)
         val(bl2)
@@ -256,7 +273,7 @@ process merge_blast_outs {
     echo "XXX $spid" >> ${params.wdir}/kk.$spid;
     """
 
-}
+} */
 
 process blast_sum_coverage {
     input:
@@ -266,7 +283,12 @@ process blast_sum_coverage {
         
     output:
         val("$blast_sumcov"), emit: TBL
-        val("${blast_merge}_taxonomysum_byread.tbl"), emit: BYR
+        val(byrd), emit: BYR
+        val(bysq), emit: BYSQ
+        val(bysp), emit: BYSP
+        val(resum), emit: SUM
+        val(resum), emit: SUM2
+        //val("${blast_merge}_taxonomysum_byread.tbl"), emit: BYR
       
     script:
     blast_sumcov=blastout.replaceAll(".tbl",".coverage.tbl")
@@ -274,13 +296,19 @@ process blast_sum_coverage {
     
     blast_merge=blast_sumcov.replaceAll(".tbl",".merge")
     merge_log=blast_sumcov.replaceAll(".tbl",".merge.tbl.log")
+
+    
+    if (params.taxalg ==~ /(?)BLASTN/){blalg="blastn"};
+    if (params.taxalg ==~ /(?)TBLASTX/){ blalg="tblastx"};
+
     
     sampid=blast_sumcov.split('/')[-1].split('[.]')[0]
     
      //reports dir
-     byrd="${params.reports_dir}/${sampid}_taxonomysum_byread.tbl"
-     bysq="${params.reports_dir}/${sampid}_taxonomysum_bysequence.tbl"
-     bysp="${params.reports_dir}/${sampid}_taxonomysum_byspecie.tbl"
+     byrd="${params.reports_dir}/${sampid}.${blalg}_taxonomysum_byread.tbl"
+     bysq="${params.reports_dir}/${sampid}.${blalg}_taxonomysum_bysequence.tbl"
+     bysp="${params.reports_dir}/${sampid}.${blalg}_taxonomysum_byspecie.tbl"
+     stats="${params.reports_dir}/${sampid}.${blalg}.stats.out"
     // odir="${params.taxfastdir}/${sampid}"
    //  unaling_ids=allqids.replaceAll(".ids", ".unaligned.ids")
     """
@@ -308,14 +336,15 @@ process blast_sum_coverage {
         fi;
     fi;
 
-     cp  ${blast_merge}_taxonomysum_byread.tbl  ${byrd}
-     cp  ${blast_merge}_taxonomysum_bysequence.tbl   ${bysq}
-     cp  ${blast_merge}_taxonomysum_byspecie.tbl  ${bysp}
+     cp  ${blast_merge}_taxonomysum_byread.tbl      ${byrd}
+     cp  ${blast_merge}_taxonomysum_bysequence.tbl  ${bysq}
+     cp  ${blast_merge}_taxonomysum_byspecie.tbl    ${bysp}
+     cp  ${blast_merge}.stats.out                   ${stats}
     
     """
     // ## Get list of unclassified ids:
     // ## gawk 'BEGIN{ while(getline<ARGV[1]>0) G[\$1]=\$1; ARGV[1]=""; } 
-    // ##       \$2 in G {} else { F[\$1]++; } 
+    // ##       \$2 in G {} else { F[\$1]++; }
     // ##       END{ for (f in F) print f; }
     // ##       ' $blastout $allqids > $unaling_ids;
     // ## grep -v  -f 

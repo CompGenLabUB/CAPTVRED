@@ -2,7 +2,7 @@
 
 process make_summary_tbl {
     input:
-      val x
+      val sumfls_list
     output:
       val ("$outfinal")
     
@@ -10,8 +10,8 @@ process make_summary_tbl {
     just_for_workflow_control=x
     samplestb="${params.sampletbl}";
     conrp="${params.reports_dir}/${params.runID}_contigs_counts.tbl";
-    if (params.taxonslow == true){taxfl="${params.taxslowdir}"};
-    if (params.taxonfast == true){ taxfl="${params.taxfastdir}"};
+    // if (params.taxalg ==~ /(?)BLASTN/){taxfl="${params.taxbndir}"};
+    // if (params.taxalg ==~ /(?)BLASTN/){ taxfl="${params.taxtbxdir}"};
     taxrp="${params.reports_dir}/${params.runID}_taxonomy_stats.tbl";
     outfinal="${params.reports_dir}/${params.runID}_samples_final_summary.tbl"
     """
@@ -31,7 +31,8 @@ process make_summary_tbl {
          ncsg=\$(grep -c '^>' "${params.asbl_dir}/${params.assembler}/\${i}/\${i}.contigs+singletons.fa");
          echo \${i}\t\${ncns}\t\${ncsg} >> ${conrp}
          
-         cat  ${taxfl}/\${i}/\${i}.contigs+singletons_*stats.out >> $taxrp; 
+         ## cat  ${taxfl}/\${i}/\${i}.contigs+singletons_*stats.out >> $taxrp; 
+         cat ${sumfls_list} >> $taxrp; 
     
     done;
 
