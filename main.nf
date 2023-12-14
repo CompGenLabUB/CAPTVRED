@@ -72,7 +72,7 @@ workflow fastqc_onrawseqs() {
     spschan=Channel.fromPath("$regx")
     //spschan=spsch.filter({ it =~ /"$spstr"/ })
     //spschan=spsch.grep({ it.toString() =~ /"$spstr"/ })
-    spschan.view()
+    // spschan.view()
     fastQC(spschan) | collect | multiQC_raw
 }
 
@@ -153,7 +153,9 @@ workflow reads_filter_nonviral() {
      
      main:
         kaiju_raw(x)
+        kaiju_raw.out.view()
         discard_nonviral(kaiju_raw.out)
+        discard_nonviral.out.SGLout.view()
         fastQC( discard_nonviral.out.mix() ) | collect | multiQC_filt
 
     emit:
@@ -341,6 +343,7 @@ workflow direct_blast_n () {
         //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
 
         make_db_for_blast( ref_fasta, "FALSE") 
+        all_contigs.view()
         do_blastn(all_contigs, make_db_for_blast.out.DB, params.taxbndir)
         
         if (params.handle_contamination == true ) {

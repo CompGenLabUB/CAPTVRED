@@ -176,13 +176,13 @@ process do_tblastx {
 
        spid=query.toString().split('/')[-1].split('[.]')[0]
        blast_q=query.toString().split('/')[-1].replaceAll(/.gz$/, "").replaceAll(/.fa$/, "")
-       blast_r=db.toString().split('/')[-1]
+       blast_r=rdb.toString().split('/')[-1]
        blast_algn="${blast_q}_ON_${blast_r}.TBLASTX.tbl"
        blast_dir="${out_dir}/${spid}" //params.contigs_blast_dir
        dbindex="${rdb}.nin";
        
        """
-        #echo "TBLASTX $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
+        echo "TBLASTX $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
         if [ -d $blast_dir ]; then 
                 echo "$blast_dir"; 
             else 
@@ -193,7 +193,7 @@ process do_tblastx {
         if [[ -e ${dbindex} ]]; then
             if [[ \$(echo ${query}) =~ .gz\$ ]]; then
                 gzip -dc ${query} |\
-                    tblastx -query  -  -db ${db}          \
+                    tblastx -query  -  -db ${rdb}          \
                     -out ${blast_dir}/${blast_algn}    \
                     -num_alignments 1 -perc_identity ${params.blast_pident}               \
                     -evalue ${params.blast_eval}   -subject_besthit           \
@@ -201,7 +201,7 @@ process do_tblastx {
                     -num_threads ${params.NCPUS}       \
                     2> ${blast_dir}/${blast_algn}.log;
             else
-                tblastx -query ${query} -db ${db}          \
+                tblastx -query ${query} -db ${rdb}          \
                     -out ${blast_dir}/${blast_algn}    \
                     -num_alignments 1 -perc_identity 50              \
                     -evalue 10e-10      -subject_besthit       \
@@ -286,8 +286,8 @@ process blast_sum_coverage {
         val(byrd), emit: BYR
         val(bysq), emit: BYSQ
         val(bysp), emit: BYSP
-        val(resum), emit: SUM
-        val(resum), emit: SUM2
+        val(stats), emit: SUM
+        val(stats), emit: SUM2
         //val("${blast_merge}_taxonomysum_byread.tbl"), emit: BYR
       
     script:

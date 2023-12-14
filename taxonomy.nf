@@ -216,12 +216,14 @@ process kaiju_raw {
 
                 
     output:
-        val "${odir}/${samp_id}_all.kaiju.${db_id}.names.out"
+        val "${allnames}"
     
     script:
     
     samp_id=sgle.split('/')[-1].replaceAll("_sgl.fastq.gz", "")
     odir="${params.taxdir}/reads_taxon/${samp_id}"
+    allout="${odir}/${samp_id}_all.kaiju.${db_id}.out"
+    allnames="${odir}/${samp_id}_all.kaiju.${db_id}.names.out"
         
         """
             echo ${db_id};
@@ -268,11 +270,11 @@ process kaiju_raw {
 
             cat  ${odir}/${samp_id}_pe.kaiju.${db_id}.out            \
                  ${odir}/${samp_id}_sg.kaiju.${db_id}.out            \
-               > ${odir}/${samp_id}_all.kaiju.${db_id}.out;
+               > ${allout};
 
             cat  ${odir}/${samp_id}_pe.kaiju.${db_id}.names.out      \
                  ${odir}/${samp_id}_sg.kaiju.${db_id}.names.out      \
-               > ${odir}/${samp_id}_all.kaiju.${db_id}.names.out;
+               > ${allnames};
 
 
             kaiju2krona -u -v                                          \
@@ -305,23 +307,28 @@ process discard_nonviral {
      
     script:
 
-     nvids=txn_names_tbl.replaceAll(".names.out", ".nonviral.ids")
      samp_id=txn_names_tbl.split('/')[-1].split('[.]')[0].replaceAll("_all", "")
+     nvids=txn_names_tbl.replaceAll(".names.out", ".nonviral.ids")
      
         """
+        touch ${nvids};
+        echo "#NON_VIRAL_IDS - These ids will be discarded#" > ${nvids};
         awk ' (\$1 ~ /C/)  &&  !(\$8 ~ /Viruses|NA/) { print \$2}'    \
-          ${txn_names_tbl}   >  ${nvids};
+          ${txn_names_tbl}   >>  ${nvids} 2> ${nvids}.log;
 
         seqkit grep --invert-match --pattern-file  ${nvids}        \
                     ${params.clnfq_dir}/${samp_id}_pe1.fastq.gz    |\
-                    gzip -   > ${params.clnfq_dir}/${samp_id}_pe1.filtered.fastq.gz;
+                    gzip -   > ${params.clnfq_dir}/${samp_id}_pe1.filtered.fastq.gz \
+                    2> ${params.clnfq_dir}/${samp_id}_pe1.filtered.log;
                     
         seqkit grep --invert-match --pattern-file ${nvids}         \
                     ${params.clnfq_dir}/${samp_id}_pe2.fastq.gz    |\
-                    gzip -   > ${params.clnfq_dir}/${samp_id}_pe2.filtered.fastq.gz;
+                    gzip -   > ${params.clnfq_dir}/${samp_id}_pe2.filtered.fastq.gz \
+                    2> ${params.clnfq_dir}/${samp_id}_pe2.filtered.log;
                     
         seqkit grep --invert-match --pattern-file  ${nvids}       \
                     ${params.clnfq_dir}/${samp_id}_sgl.fastq.gz   |\
-                    gzip -   > ${params.clnfq_dir}/${samp_id}_sgl.filtered.fastq.gz;
+                    gzip -   > ${params.clnfq_dir}/${samp_id}_sgl.filtered.fastq.gz \
+                    2> ${params.clnfq_dir}/${samp_id}_sgl.filtered.log;
         """
 }
