@@ -5,7 +5,7 @@ include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp }
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
 include { megahit_assembly_all; metaspades_assembly} from './reads_assembly.nf'
 include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn; do_tblastx; best_reciprocal_hit; blast_sum_coverage; do_cov_onrefseqs } from './contigs_align.nf'
-include { kaiju_raw; discard_nonviral; kaiju_contigs; extract_ids  } from './taxonomy.nf'
+include { kaiju_raw; discard_nonviral; kaiju_contigs; kaiju_summarize; extract_ids  } from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
 include { handle_contamination_pr } from './contamination.nf'
 include { fill_html_report; make_summary_tbl } from './sum_and_report.nf'
@@ -576,7 +576,7 @@ workflow {
             byseqfl=kaiju_summarize.out.BYSQ
             byspecfl=""
             statssum=kaiju_summarize.out.SUM
-            kronaPT=to_kaiju_contigs.out.KP
+            kronaPT=kaiju_contigs.out.KP
 
             FIN=kaiju_summarize.out.DONE.collect()
           

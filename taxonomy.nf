@@ -15,7 +15,7 @@ process kaiju_contigs {
     script:
     
     samp_id=contigs_fa.split('/')[-1].split('[.]')[0]
-    odir="${params.taxfastdir}/${samp_id}"
+    odir="${params.taxkaidir}/${samp_id}"
     wnames="${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.names.out"
     kronaplt="${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out.krona.html"
    
@@ -67,9 +67,9 @@ process kaiju_summarize{
     output:
         val(byrd), emit: BYR
         val(bysq), emit: BYSQ
-        val(bysp), emit: BYSP
-        val(resum), emit: SUM
-        val(resum), emit: DONE
+        // val(bysp), emit: BYSP
+        val(stats), emit: SUM
+        val(stats), emit: DONE
 
 
     script:
@@ -94,7 +94,6 @@ process kaiju_summarize{
 
      cp ${sampid}_kaiju_taxonomysum_byread.tbl      ${byrd}
      cp ${sampid}_kaiju_taxonomysum_bytaxon.tbl  ${bysq}
-     # cp ${sampid}_kaiju_taxonomysum_byspecie.tbl    ${bysp}
      cp ${sampid}_kaiju.stats.out    ${stats}
 
     """
@@ -147,7 +146,7 @@ process taxonid_to_fasta{
         ref_fa=cl_txn.replaceAll(/.taxon$/, ".reference.fa")
         cl_refid=cl_txn.replaceAll(/.taxon$/, ".reference.fa.ids")
         sampid=cl_txn.split('/')[-1].split('[.]')[0]
-        odir="${params.taxfastdir}/${sampid}"
+        odir="${params.taxkaidir}/${sampid}"
         DB_FA="${params.blast_refseqs_dir}/C-RVDBvCurrent.fasta.gz"
         ids_tbl="${params.blast_refseqs_dir}/C-RVDB_genebank_to_taxon.ids"
         
