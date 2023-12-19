@@ -70,7 +70,7 @@ process do_blastn {
        blast_dir="${out_dir}/${spid}"
        dbindex="${rdb}.nin";
        """
-       echo "BLASTN $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
+
         if [ -d $blast_dir ]; then 
                 echo "$blast_dir"; 
             else 
@@ -125,7 +125,7 @@ process do_blastn {
        blast_dir="${out_dir}/${spid}"
        dbindex="${rdb}.nin";
        """
-       echo "TBLASTX $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
+
        echo "$dummy";
         if [ -d $blast_dir ]; then 
                 echo "$blast_dir"; 
@@ -182,7 +182,7 @@ process do_tblastx {
        dbindex="${rdb}.nin";
        
        """
-        echo "TBLASTX $query  :: $blast_q \n $rdb :: $blast_r \n ${blast_dir}/${blast_algn}" >> ${params.wdir}/kk.$spid;
+
         if [ -d $blast_dir ]; then 
                 echo "$blast_dir"; 
             else 
@@ -195,7 +195,7 @@ process do_tblastx {
                 gzip -dc ${query} |\
                     tblastx -query  -  -db ${rdb}          \
                     -out ${blast_dir}/${blast_algn}    \
-                    -num_alignments 1 -perc_identity ${params.blast_pident}               \
+                    -num_alignments 1               \
                     -evalue ${params.blast_eval}   -subject_besthit           \
                     -outfmt \"${params.bl_outfmt}\"    \
                     -num_threads ${params.NCPUS}       \
@@ -203,7 +203,7 @@ process do_tblastx {
             else
                 tblastx -query ${query} -db ${rdb}          \
                     -out ${blast_dir}/${blast_algn}    \
-                    -num_alignments 1 -perc_identity 50              \
+                    -num_alignments 1             \
                     -evalue 10e-10      -subject_besthit       \
                     -outfmt \"${params.bl_outfmt}\"    \
                     -num_threads ${params.NCPUS}       \
@@ -268,9 +268,7 @@ process best_reciprocal_hit {
     """
     if [ -f $bl1 -a -f $bl2 ] ; then
         cat ${bl1} ${bl2} >  ${blast_all} 2> ${blast_all}.log;
-        echo "FFF ${blast_all}" >> ${params.wdir}/kk.$spid;
     fi;
-    echo "XXX $spid" >> ${params.wdir}/kk.$spid;
     """
 
 } */
@@ -291,11 +289,11 @@ process blast_sum_coverage {
         //val("${blast_merge}_taxonomysum_byread.tbl"), emit: BYR
       
     script:
-    blast_sumcov=blastout.replaceAll(".tbl",".coverage.tbl")
-    coverage_log=blastout.replaceAll(".tbl",".coverage.tbl.log")
+    blast_sumcov=blastout.replaceAll(/\.tbl/,".coverage.tbl")
+    coverage_log=blastout.replaceAll(/\.tbl/,".coverage.tbl.log")
     
-    blast_merge=blast_sumcov.replaceAll(".tbl",".merge")
-    merge_log=blast_sumcov.replaceAll(".tbl",".merge.tbl.log")
+    blast_merge=blastout.replaceAll(/\.tbl/,".merge")
+    merge_log=blast_sumcov.replaceAll(/\.tbl/,".merge.tbl.log")
 
     
     if (params.taxalg ==~ /(?)BLASTN/){blalg="blastn"};

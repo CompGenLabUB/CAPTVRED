@@ -153,9 +153,9 @@ workflow reads_filter_nonviral() {
      
      main:
         kaiju_raw(x)
-        kaiju_raw.out.view()
+        // kaiju_raw.out.view()
         discard_nonviral(kaiju_raw.out)
-        discard_nonviral.out.SGLout.view()
+        // discard_nonviral.out.SGLout.view()
         fastQC( discard_nonviral.out.mix() ) | collect | multiQC_filt
 
     emit:
@@ -343,7 +343,7 @@ workflow direct_blast_n () {
         //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
 
         make_db_for_blast( ref_fasta, "FALSE") 
-        all_contigs.view()
+        // all_contigs.view()
         do_blastn(all_contigs, make_db_for_blast.out.DB, params.taxbndir)
         
         if (params.handle_contamination == true ) {
@@ -481,7 +481,7 @@ workflow unc_contigs_blast (){
                 
            // c. // Summarize results
                 merge_blast_outs(class_contigs_blast.out.BLOUT, unc_contigs_blast.out.BLOUT )
-                merge_blast_outs.out.BALL.view()
+                // merge_blast_outs.out.BALL.view()
                 blast_sum_coverage(merge_blast_outs.out.BALL, extract_ids.out.CLIDS, extract_ids.out.UNIDS)
 
     
@@ -561,7 +561,7 @@ workflow {
             // 5.1. FAST APPROACH// 
               // 5.1.1. Protein-level classification (KAIJU) //
             KCDB=Channel.from(params.kaijudb)
-            KCDB.view()
+            // KCDB.view()
             to_kaiju_contigs=KCDB.combine(CNFA.merge()).merge()
             kaiju_contigs(to_kaiju_contigs)
             kaiju_summarize(kaiju_contigs.out.NM)
@@ -623,6 +623,7 @@ workflow {
                   blOUT=coverage_onrefseqs.out.blastout                   
                   covOUT=coverage_onrefseqs.out.coverage
             } else {
+                  Channel.from("TAXONOMY APPROACH IS NOT UNDERSTOOD... please check your spelling!").view()
                   blOUT=""                   
                   covOUT=""
             }
