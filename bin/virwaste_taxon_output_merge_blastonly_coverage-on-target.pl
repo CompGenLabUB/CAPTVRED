@@ -154,8 +154,7 @@ while (<COV>) {
          #%qids={ contig ID = [length, BestHitlen, BestHitCoverage, Reference sequence, taxon_approach, #reads], ContigID2 =[...], ... }
          #exists($qids{$obs[1]} ) && next;
          #print STDOUT $obs[1]."\n";
-         (undef, undef, $rf, undef) = split /\|/o, $obs[13];  
-            #refseq info is split to get only the seq ID;
+         (undef, undef, $rf, undef) = split /\|/o, $obs[13];   #refseq info is split to get only the seq ID.
          $tag = (defined($clas_ids) ? $apf{$cid}[0] : "B");
          $ks  = (defined($clas_ids) ? $apf{$cid}[1] : "NA");
          #exists ($rcounts{$obs[1]}) || ($rcounts{$obs[1]} = 1);  ## singletons
