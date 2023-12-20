@@ -7,7 +7,8 @@ process coverage_plots {
         val blastout
         val covfl
     
-    //output? no cal
+    output:
+        val outdir, emit: ODIR
     
     script:
     
@@ -16,17 +17,20 @@ process coverage_plots {
     samp_id=pebam.split('/')[-1].toString().replaceAll("_pe.bowtie.sorted.mapped.bam","")
     //idtoname="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis.ids"
     infofl="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis.ids"
-    
+    outdir="${params.reports_dir}/coverage_figures"
     """
-    bash ${params.bindir}/cov-blast2gff.sh  ${covfl}   ${blastout}   ${gffblast}
-    
-    
-    Rscript ${params.bindir}/virwaste_coverage_figures.R         \
-         ${rdir}          ${rdir}/refseqs_coordinates.tbl        \
-         ${samp_id}       ${pebam}         ${sgbam}              \
-         ${gffblast}      ${infofl}                              \
-         ${params.reports_dir}/coverage_figures                  \
-        2> ${params.reports_dir}/coverage_figures/Coverage_${samp_id}.log;
+     if [ -s $covfl ]; then 
+                touch  ${gffblast}
+     else
+        bash ${params.bindir}/cov-blast2gff.sh  ${covfl}   ${blastout}   ${gffblast}
+     fi;
+        
+     Rscript ${params.bindir}/virwaste_coverage_figures.R         \
+             ${rdir}          ${rdir}/refseqs_coordinates.tbl     \
+             ${samp_id}       ${pebam}         ${sgbam}           \
+             ${gffblast}      ${infofl}                           \
+             ${outdir}                                            \
+            2> ${params.reports_dir}/coverage_figures/Coverage_${samp_id}.log;
     """
 
 }

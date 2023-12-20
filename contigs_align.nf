@@ -397,6 +397,7 @@ process do_cov_onrefseqs () {
                 [ -e ${params.tmp_dir}/${spid}.\${txn}.contigs.ids   ] && rm -v ${params.tmp_dir}/${spid}.\${txn}.contigs.ids;
                 [ -e ${params.tmp_dir}/${spid}.\${txn}.contigs.fa    ] && rm -v ${params.tmp_dir}/${spid}.\${txn}.contigs.fa;
                 [ -e ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl ] && rm -v ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl;
+                
                  # 1. # Extract fastas of refseqs:
                  zcat ${refsfa} | seqkit grep -f ${params.tmp_dir}/${spid}.\${txn}.sqids - \
                               > ${params.tmp_dir}/${spid}.\${txn}.reference.fa;
@@ -415,7 +416,7 @@ process do_cov_onrefseqs () {
                                         ${params.tmp_dir}/${spid}.\${txn}.contigs.fa \
                                      >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
                           blastn -query   ${params.tmp_dir}/${spid}.\${txn}.contigs.fa   \
-                                 -subject ${params.tmp_dir}/${spid}.\${txn}.reference.fa \
+                                 -subject ${params.tmp_dir}/${spid}.\${txn}.reference.fa  \
                                  -num_alignments 1       -perc_identity ${params.cor_pident}     \
                                  -evalue ${params.cor_eval}   -dbsize ${params.taxondbsize}  \
                                  -outfmt \"${params.bl_outfmt}\"                  \

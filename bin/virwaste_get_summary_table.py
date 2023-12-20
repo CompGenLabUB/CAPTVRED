@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import numpy as np
 import re
 import pandas as pd
+import numpy as np
+
+
 
 
 '''
@@ -18,7 +20,8 @@ python3 /dir/to/virwaste_get_summary_tables.py     \
          /dir/to/align/multiqc_bowtie2.txt \
          /dir/to/contigs_summary.tbl       \
          /dir/to/taxon_summary.tbl         \
-         /dir/to/outfile.csv
+         /dir/to/outfile.csv               \
+         fastq_sufixR1  fastq_sufixR2
 
 OUTPUT FILE:
 Fields are:  IDSample, N.-Raw-Reads, N.-Clean-Reads-PE, N.-Clean-Reads-SG, N.-Clean-Reads-TOT, 
@@ -26,6 +29,8 @@ Fields are:  IDSample, N.-Raw-Reads, N.-Clean-Reads-PE, N.-Clean-Reads-SG, N.-Cl
              N.-Aligned-PE-OneMate, N.-Aligned-Total, N.ctgs+sgl assemblied, N.contigs, n.Singletons, 
              n.seqs-assembled,  n.Reference-sequences-found, n.species-found
 '''
+sufix1=sys.argv[9]
+sufix2=sys.argv[10]
 
 samples={}
 decoder={}
@@ -38,6 +43,7 @@ try:
                                 decoder[ln[1]]=ln[0]
                 samples["TOTAL"] = [int(0)]*16
             
+
 except ValueError:
         print("No samples file found... Please give samlpes tbl file.")
 print(decoder)
@@ -48,7 +54,7 @@ try:
         with open(sys.argv[2], 'r') as file:   ## RAW READS
                 for line in file.readlines():
                         ln=line.rstrip().split("\t")
-                        idf=re.sub('_R[1,2]_001.fastq.gz', '', ln[0])
+                        idf=re.sub(r'(_R1|_R2).(fq|fastq).gz'.format(sufix1,sufix2), '', ln[0])
                         if not idf=="Sample":
                                 samples[decoder[idf]][0] += int(float(ln[4]))
                                 samples["TOTAL"][0] += int(float(ln[4]))

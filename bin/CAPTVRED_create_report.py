@@ -1,13 +1,14 @@
 import sys
-import os.path
+import os
 import pandas as pd
 import jinja2
+import re
 
 '''
 This scripts completes the html template with the
 specific information of each run.
 
-USAGE:  python3 RunResults_create_report.py   \
+USAGE:  python3 CAPTVRED_create_report.py     \
                 samples_definition.tbl        \      
                 reports_dir                   \       
                 run_ID                        \ 
@@ -20,6 +21,8 @@ USAGE:  python3 RunResults_create_report.py   \
 myclasstr="mytables table  dataTables_wrapper table-striped table-hover table-borderless"
 idir=sys.argv[2]
 runid=sys.argv[3]
+taxap=sys.argv[7].lower()
+covfigs_dir=idir + "/coverage_figures"  #Coverage figures directory
 
 ## 1. Charge information:
 
@@ -50,18 +53,18 @@ for index, row in sd.iterrows():
   dividsp="sample"+str(index)+"_sp"
   dividsq="sample"+str(index)+"_sq"
   dividrd="sample"+str(index)+"_rd"
-  bysp=pd.read_csv( idir + "/" + idf + "_taxonomysum_byspecie.tbl" , sep="\t" )
+  bysp=pd.read_csv( idir + "/" + idf + "." + taxap + "_taxonomysum_byspecie.tbl" , sep="\t" )
   bysp_html=bysp.to_html(  table_id="sptbl_".index, 
                            border = 0, 
                            classes=myclasstr
                         ).replace('<thead>','<thead class="thead-dark">')
                         
-  bysq=pd.read_csv( idir + "/" + idf + "_taxonomysum_byspecie.tbl", sep="\t" )
+  bysq=pd.read_csv( idir + "/" + idf + "." + taxap +"_taxonomysum_byspecie.tbl", sep="\t" )
   bysq_html=bysq.to_html(  table_id="sqtbl_".index, 
                            border = 0, 
                            classes=myclasstr
                         ).replace('<thead>','<thead class="thead-dark">')
-  byrd=pd.read_csv( idir + "/" + idf + "_taxonomysum_byread.tbl", sep="\t" )
+  byrd=pd.read_csv( idir + "/" + idf + "." + taxap + "_taxonomysum_byread.tbl", sep="\t" )
   byrd_html=bysp.to_html(  table_id="rdtbl_".index, 
                            border = 0, 
                            classes=myclasstr
@@ -72,6 +75,16 @@ for index, row in sd.iterrows():
 print(samplesls[1][1], samplesls[1][0], samplesls[1][2], samplesls[1][3])
 print(samplesls[1][4], samplesls[1][5])
 print(samplesls[1][7], samplesls[1][9])
+
+
+## Coverage Figures:
+images={}
+for index, row in sd.iterrows():
+   sampid=row[1]
+   print(sampid)
+   pattern=re.compile('.*(%s).*png$'%sampid)
+   images[sampid] = [ '/'.join([idir, "coverage_figures", file]) for file in os.listdir(covfigs_dir) if pattern.match(file)]
+   #print (images)
 
 
 ## JINJA:
@@ -87,7 +100,8 @@ outhtml = template.render( run_name=runid,
                            sumtbl=sumtbl_html,
                            nxfrep=idir + "/Nextflow_execution_report.html",
                            mqc_raw=idir + "/" + runid + "_multiqc_raw.html",
-                           mqc_filt=idir + "/" + runid + "_multiqc_filt.html"
+                           mqc_filt=idir + "/" + runid + "_multiqc_filt.html",
+                           covfigures=images
                            )
 
 with open(sys.argv[6], 'w') as f:

@@ -202,6 +202,7 @@ for (rgn in reflst) {
         if ( ContigsFound) {
                 print(" --- AAA --- ")
                 if (any(contigs.txdb$user_seqlevels == rgn.v)) {
+#          if ( ContigsFound & any(contigs.txdb$user_seqlevels == rgn.v) ) {
                     print(" --- BBB --- ")
                     colors.genes <- "lightseagreen" #hcl.colors(1, palette="Spectral");
                     contigs <- autoplot(contigs.txdb, which=GRanges(rgn.v, IRanges(Xmin, Xmax)),
@@ -212,6 +213,11 @@ for (rgn in reflst) {
                                     text = element_text(size = 10),
                                     plot.title = element_text(size = 15)) +
                                 scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
+                } else {
+                    print(" --- bbb --- ")
+                    contigs <- NA_plot( Xmax, 1, 'No contigs > 100nt assembled')+
+                                scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0)) +
+                                theme(axis.text.x=element_text())
                 }
         } else {
                     print(" --- CCC --- ")

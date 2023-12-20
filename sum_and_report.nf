@@ -7,15 +7,15 @@ process make_summary_tbl {
       val ("$outfinal")
     
     script:
-    just_for_workflow_control=x
+ 
     samplestb="${params.sampletbl}";
     conrp="${params.reports_dir}/${params.runID}_contigs_counts.tbl";
-    // if (params.taxalg ==~ /(?)BLASTN/){taxfl="${params.taxbndir}"};
-    // if (params.taxalg ==~ /(?)BLASTN/){ taxfl="${params.taxtbxdir}"};
+    // if (params.taxonslow == true){taxfl="${params.taxslowdir}"};
+    // if (params.taxonfast == true){ taxfl="${params.taxfastdir}"};
     taxrp="${params.reports_dir}/${params.runID}_taxonomy_stats.tbl";
     outfinal="${params.reports_dir}/${params.runID}_samples_final_summary.tbl"
+    sumflsstr = sumfls_list.join(" ")
     """
-   echo $just_for_workflow_control;
    ## Summarize info of contigs and blast:
     echo  "#SAMPLE_ID\tN_CONTIGS\tN_CON+SGL" > ${conrp}
     echo  "#SAMPLE_ID\tN_READS\tN_SEQS\tNSPECS" > ${taxrp}
@@ -28,24 +28,23 @@ process make_summary_tbl {
          then
              ncns=\$(grep -c '^>' "${params.asbl_dir}/${params.assembler}/\${i}/scaffolds.fasta");
          fi;
+         
          ncsg=\$(grep -c '^>' "${params.asbl_dir}/${params.assembler}/\${i}/\${i}.contigs+singletons.fa");
          echo \${i}\t\${ncns}\t\${ncsg} >> ${conrp}
-         
-         ## cat  ${taxfl}/\${i}/\${i}.contigs+singletons_*stats.out >> $taxrp; 
-         cat ${sumfls_list} >> $taxrp; 
     
     done;
-
-    #python script
+    cat  ${sumflsstr} >> $taxrp; 
+    # python script
     python3 ${params.bindir}/virwaste_get_summary_table.py        \
           ${samplestb}                                    \
           ${params.reports_dir}/${params.runID}_multiqc_raw_data/multiqc_fastqc.txt    \
           ${params.reports_dir}/${params.runID}_multiqc_clean_data/multiqc_fastqc.txt  \
           ${params.reports_dir}/${params.runID}_multiqc_filt_data/multiqc_fastqc.txt   \
           ${params.reports_dir}/${params.runID}_multiqc_bowtie_amplicons_alignment_data/multiqc_bowtie2.txt  \
-          ${conrp}  \
-          ${taxrp}  \
-          ${outfinal}
+          ${conrp}       \
+          ${taxrp}       \
+          ${outfinal}    \
+          ${params.R1}     ${params.R2} 
      """
 }
 
@@ -53,6 +52,7 @@ process fill_html_report {
 
     input:
        val samples_sum
+       val figsdir
 
     output:
       val final_html
@@ -68,7 +68,7 @@ process fill_html_report {
             ${params.runID}                                              \
             ${samples_sum}                                               \
             ${params.nfscripts_dir}/CAPTVRED_final_report_template.html  \
-            ${final_html}  
+            ${final_html}     ${params.taxalg}
       """
 }
 

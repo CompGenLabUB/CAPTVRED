@@ -4,7 +4,7 @@ include { bbduk_clean; samps_idtranslate } from './rawfq_clean.nf'
 include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
 include { megahit_assembly_all; metaspades_assembly} from './reads_assembly.nf'
-include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn; do_tblastx; best_reciprocal_hit; blast_sum_coverage; do_cov_onrefseqs } from './contigs_align.nf'
+include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_onrefseqs } from './contigs_align.nf'
 include { kaiju_raw; discard_nonviral; kaiju_contigs; kaiju_summarize; extract_ids  } from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
 include { handle_contamination_pr } from './contamination.nf'
@@ -13,6 +13,7 @@ include { fill_html_report; make_summary_tbl } from './sum_and_report.nf'
 /* THE DISCARDED:
 include { do_blast_kaiju; merge_blast_outs } from './contigs_align.nf'
 include { taxonid_to_fasta; readid_to_fasta }from './taxonomy.nf'
+include { best_reciprocal_hit } from './contgis_align'
 */
 
 def samplesMap = [:]
@@ -216,7 +217,7 @@ workflow align_summary() {
 
 
 
-
+/*
 workflow megahit_assembly_flow () {
     take:
       pe1
@@ -241,7 +242,7 @@ workflow megahit_assembly_flow () {
       FASTA=megahit_assembly_all.out.CGSout
       BLOUT=QOR
 }
-
+*/
 
 workflow trinity_assembly_flow () {
     take: 
@@ -327,7 +328,7 @@ workflow vizualise_results_flow() {
     main:
         coverage_plots(pebam, sgbam, blasttbl, brh)
     emit:
-     ""
+        coverage_plots.out.ODIR
 
 }
 
@@ -498,7 +499,8 @@ workflow coverage_onrefseqs() {
 
     main:
       
-      do_cov_onrefseqs("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
+     make_db_for_blast( ##ref_fasta##, "FALSE")   // FALSE refers to: not redo db if it already exists.
+     do_cov_onrefseqs("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
                      "${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}",
                      contigs_fa,
                      assign_byr,
@@ -589,8 +591,8 @@ workflow {
             direct_blast_n(ref_fa, CNFA)
             
              if ( params.general_only == false) {
-                  coverage_onrefseqs(direct_blast.out.CFA, 
-                                     direct_blast.out.REP
+                  coverage_onrefseqs(direct_blast_n.out.CFA, 
+                                     direct_blast_n.out.BY_R
                                     )
                   blOUT=coverage_onrefseqs.out.blastout                   
                   covOUT=coverage_onrefseqs.out.coverage
@@ -617,8 +619,8 @@ workflow {
             direct_blast_tx(ref_fa, CNFA)
             
             if ( params.general_only == false) {
-                  coverage_onrefseqs(direct_blast.out.CFA, 
-                                     direct_blast.out.REP
+                  coverage_onrefseqs(direct_blast_tx.out.CFA, 
+                                     direct_blast_tx.out.BY_R
                      )
                   blOUT=coverage_onrefseqs.out.blastout                   
                   covOUT=coverage_onrefseqs.out.coverage
@@ -634,10 +636,11 @@ workflow {
             statssum=direct_blast_tx.out.S_SUM
             kronaPT=""
 
-            FIN=direct_blast_tx.out.DONE.collect()
+            FIN=direct_blast_tx.out.DONE.collectFile(name: "${params.tmp_dir}/allstats.txt", newLine: true)
+            // collect()
          }
 
-/*  SILENCIAT TEMPORALMENT PER PROVES!!!!!!!!!!!!!!!!!!!  
+
     // 6 // Reporting results
     
         // 6.1. // Summary tables // //
@@ -652,18 +655,18 @@ workflow {
                        blOUT,
                        covOUT
                        )
+        figsDIR=vizualise_results_flow.out
         
         // 6.3. // HTML report. 
-        fill_html_report(make_summary_tbl.out)
+        fill_html_report(make_summary_tbl.out, figsDIR)
         
-
                        
         // 6.2 // Taxonomy summary
             // taxon_outkaiju  (*.rvdb.names.out file)
             // blast_unc_x_cl.RPT
             // blast_unc_x_cl.out.RPT
             
-*/
+
 
 }
 
