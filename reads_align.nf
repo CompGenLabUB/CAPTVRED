@@ -73,7 +73,7 @@ process bowtie_amplicons_alignment {
                        > ${odir}/${pe_root}.bowtie.sorted.bam;
         rm -vf ${odir}/${pe_root}.bowtie.bam;
         samtools index  ${odir}/${pe_root}.bowtie.sorted.bam;
-        samtools view -F2052 -f3 -q ${params.alignMINQ} -h ${odir}/${pe_root}.bowtie.sorted.bam \
+        samtools view -F2052  -q ${params.alignMINQ} -h ${odir}/${pe_root}.bowtie.sorted.bam \
                     -o ${odir}/${pe_root}.bowtie.sorted.mapped.bam
         touch ${odir}/${pe_root}.ok
         

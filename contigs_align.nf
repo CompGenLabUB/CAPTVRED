@@ -192,21 +192,23 @@ process do_tblastx {
         
         if [[ -e ${dbindex} ]]; then
             if [[ \$(echo ${query}) =~ .gz\$ ]]; then
-                gzip -dc ${query} |\
-                    tblastx -query  -  -db ${rdb}          \
-                    -out ${blast_dir}/${blast_algn}    \
-                    -num_alignments 1               \
-                    -evalue ${params.blast_eval}   -subject_besthit           \
-                    -outfmt \"${params.bl_outfmt}\"    \
-                    -num_threads ${params.NCPUS}       \
+                gzip -dc ${query} | \
+                    tblastx -query  -  -db ${rdb}                    \
+                    -out ${blast_dir}/${blast_algn}                  \
+                    -num_alignments 1                                \
+                    -evalue ${params.blast_eval}                     \
+                    -subject_besthit                                 \
+                    -outfmt \"${params.bl_outfmt}\"                  \
+                    -num_threads ${params.NCPUS}                     \
                     2> ${blast_dir}/${blast_algn}.log;
             else
-                tblastx -query ${query} -db ${rdb}          \
-                    -out ${blast_dir}/${blast_algn}    \
-                    -num_alignments 1             \
-                    -evalue 10e-10      -subject_besthit       \
-                    -outfmt \"${params.bl_outfmt}\"    \
-                    -num_threads ${params.NCPUS}       \
+                tblastx -query ${query} -db ${rdb}           \
+                    -out ${blast_dir}/${blast_algn}          \
+                    -num_alignments 1                        \
+                    -evalue ${params.blast_eval}             \
+                    -subject_besthit                         \
+                    -outfmt \"${params.bl_outfmt}\"          \
+                    -num_threads ${params.NCPUS}             \
                     2> ${blast_dir}/${blast_algn}.log;
             fi;
         else
@@ -378,11 +380,12 @@ process do_cov_onrefseqs () {
 
     script:
        spid=contigsfa.toString().split('/')[-1].split('[.]')[0]
-       finalblout="${params.taxrefsqs}/${spid}/${spid}_${out_suffix}.tbl"
-       blast_sumcov="${params.taxrefsqs}/${spid}/${spid}_${out_suffix}.coverage.tbl"
-       coverage_log="${params.taxrefsqs}/${spid}/${spid}_${out_suffix}.coverage.log"
+       finalblout="${params.taxvircan}/${spid}/${spid}_${out_suffix}.tbl"
+       blast_sumcov="${params.taxvircan}/${spid}/${spid}_${out_suffix}.coverage.tbl"
+       coverage_log="${params.taxvircan}/${spid}/${spid}_${out_suffix}.coverage.log"
+       
       """
-            mkdir -p ${params.taxrefsqs}/${spid};
+            mkdir -p ${params.taxvircan}/${spid};
             [ -e $finalblout ] && rm -v $finalblout;
             touch $finalblout;
             for txn in \$(awk -vIFS='\t' '\$1!~/^#/ {print \$3}' $RefSqsDef | sort | uniq);
@@ -402,30 +405,30 @@ process do_cov_onrefseqs () {
                  zcat ${refsfa} | seqkit grep -f ${params.tmp_dir}/${spid}.\${txn}.sqids - \
                               > ${params.tmp_dir}/${spid}.\${txn}.reference.fa;
                       
-                 # 2. # Get contigs ids (filter by taxonid). And extraxt fasta of contigs of interest.
-                 awk -vtaxid="\${txn}" '\$9==taxid {print \$1} \
+                 # 2. # Get contigs ids (filter by taxonid). And extract fasta of contigs of interest.
+                 awk -vtaxid="\${txn}" '\$9==taxid {print \$1}                       \
                         ' ${assign} > ${params.tmp_dir}/${spid}.\${txn}.contigs.ids;
                  if [ -s ${params.tmp_dir}/${spid}.\${txn}.contigs.ids ]; 
                        then 
                          seqkit grep -f ${params.tmp_dir}/${spid}.\${txn}.contigs.ids ${contigsfa} \
                                       > ${params.tmp_dir}/${spid}.\${txn}.contigs.fa;
-                         echo "2 \$txn   :  DONE:)" >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
+                         #echo "2 \$txn   :  DONE:)" >> /data/virpand/pandemies/TEST_SET/DEV_TESTSET/pv.${spid};
 
                          # 3. # Do the blast and add results to "final blast" file.
-                         egrep -Hc '^>' ${params.tmp_dir}/${spid}.\${txn}.reference.fa \
-                                        ${params.tmp_dir}/${spid}.\${txn}.contigs.fa \
+                         egrep -Hc '^>' ${params.tmp_dir}/${spid}.\${txn}.reference.fa     \
+                                        ${params.tmp_dir}/${spid}.\${txn}.contigs.fa       \
                                      >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
-                          blastn -query   ${params.tmp_dir}/${spid}.\${txn}.contigs.fa   \
-                                 -subject ${params.tmp_dir}/${spid}.\${txn}.reference.fa  \
-                                 -num_alignments 1       -perc_identity ${params.cor_pident}     \
-                                 -evalue ${params.cor_eval}   -dbsize ${params.taxondbsize}  \
-                                 -outfmt \"${params.bl_outfmt}\"                  \
-                                 -out ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl \
-                                   2> ${params.tmp_dir}/${spid}.\${txn}.blast_out.log;
+                          blastn -query   ${params.tmp_dir}/${spid}.\${txn}.contigs.fa           \
+                                 -subject ${params.tmp_dir}/${spid}.\${txn}.reference.fa         \
+                                 -num_alignments 1                                               \
+                                 -evalue ${params.vcan_eval}                                      \
+                                 -outfmt \"${params.bl_outfmt}\"                                 \
+                                 -out ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl            \
+                                 2> ${params.tmp_dir}/${spid}.\${txn}.blast_out.log;
                            if [ -s ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl  ]; 
                                then 
                                    cat ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl >> ${finalblout};
-                                   printf "%d HITS found\\n" \$(wc -l ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl | awk '{print \$1}') >> /data/virpand/pandemies/TEST_SET/SIMDATA/pv.${spid};
+                                   printf "%d HITS found\\n" \$(wc -l ${params.tmp_dir}/${spid}.\${txn}.blast_out.tbl | awk '{print \$1}') >> /data/virpand/pandemies/TEST_SET/DEV_TESTSET/pv.${spid};
                                fi;
                       fi;
            }; done;
@@ -434,8 +437,66 @@ process do_cov_onrefseqs () {
            ## Get summary of blast out coverage:
            ${params.bindir}/coverage_blastshorttbl.pl \
               ${finalblout} > $blast_sumcov 2> $coverage_log;
-            
+          else
+            echo "BLAST MERGED FILE IS EMPTY "  > $blast_sumcov;
           fi;
 
       """
 }
+
+
+process do_cov_on_viralcandidates () { 
+     input:
+        val(RefSqsDef)   // Refseqs info file (tsv)
+        val(vircandb)      // Refseqs sequences fasta file
+        val(contigsfa)   //  contigs fasta file
+        val(assign)      // assignations file taxonomy_byread.tbl
+        val(out_suffix)  // suffix of the final blast out file 
+
+    output:
+       val("$finalblout"), emit: BLOUT
+       val("$blast_sumcov"), emit: COV
+
+    script:
+       spid=contigsfa.toString().split('/')[-1].split('[.]')[0]
+       finalblout="${params.taxvircan}/${spid}/${spid}_${out_suffix}.tbl"
+       blast_sumcov="${params.taxvircan}/${spid}/${spid}_${out_suffix}.coverage.tbl"
+       coverage_log="${params.taxvircan}/${spid}/${spid}_${out_suffix}.coverage.log"
+        """
+            mkdir -p ${params.taxvircan}/${spid};
+            [ -e $finalblout ] && rm -v $finalblout;
+            touch $finalblout;
+            for txn in \$(awk -vIFS='\t' '\$1!~/^#/ {print \$3}' $RefSqsDef | sort | uniq);
+             do {
+                  # 0. # Init files:
+                        [ -e ${params.tmp_dir}/${spid}.\${txn}.contigs.ids   ] && rm -v ${params.tmp_dir}/${spid}.\${txn}.contigs.ids;
+                        [ -e ${params.tmp_dir}/${spid}.\${txn}.contigs.fa    ] && rm -v ${params.tmp_dir}/${spid}.\${txn}.contigs.fa;
+                        
+                  # 2. # Get contigs ids (filter by taxonid). And extraxt fasta of contigs of interest.
+                        awk -vtaxid="\${txn}" '\$9==taxid {print \$1} \
+                          ' ${assign} > ${params.tmp_dir}/${spid}.\${txn}.contigs.ids;
+                   if [ -s ${params.tmp_dir}/${spid}.\${txn}.contigs.ids ]; 
+                       then 
+                         seqkit grep -f ${params.tmp_dir}/${spid}.\${txn}.contigs.ids ${contigsfa} \
+                                      > ${params.tmp_dir}/${spid}.\${txn}.contigs.fa;
+                         cat ${params.tmp_dir}/${spid}.\${txn}.contigs.fa >> ${params.taxvircan}/${spid}/all_class_contigs.fa;
+                    fi;
+             }; done;
+                     # 3. # Do the blast
+                     blastn -query   ${params.taxvircan}/${spid}/all_class_contigs.fa            \
+                            -db  ${vircandb}                                                     \
+                                 -num_alignments 1       -perc_identity ${params.vcan_pident}    \
+                                 -evalue ${params.vcan_eval}                                     \
+                                 -outfmt \"${params.bl_outfmt}\"                                 \
+                                 -out  ${finalblout}                                             \
+                                   2> ${finalblout}.log;
+                                   
+             if [ -s ${finalblout} ]; then 
+                 ## Get summary of blast out coverage:
+                 ${params.bindir}/coverage_blastshorttbl.pl \
+                   ${finalblout} > $blast_sumcov 2> $coverage_log;
+            
+             fi;
+        """
+ }
+

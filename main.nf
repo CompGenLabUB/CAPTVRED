@@ -4,7 +4,7 @@ include { bbduk_clean; samps_idtranslate } from './rawfq_clean.nf'
 include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
 include { megahit_assembly_all; metaspades_assembly} from './reads_assembly.nf'
-include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_onrefseqs } from './contigs_align.nf'
+include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_onrefseqs; do_cov_on_viralcandidates } from './contigs_align.nf'
 include { kaiju_raw; discard_nonviral; kaiju_contigs; kaiju_summarize; extract_ids  } from './taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './plots.nf'
 include { handle_contamination_pr } from './contamination.nf'
@@ -327,6 +327,7 @@ workflow vizualise_results_flow() {
         
     main:
         coverage_plots(pebam, sgbam, blasttbl, brh)
+        
     emit:
         coverage_plots.out.ODIR
 
@@ -498,10 +499,11 @@ workflow coverage_onrefseqs() {
         assign_byr
 
     main:
-      
-     make_db_for_blast( ##ref_fasta##, "FALSE")   // FALSE refers to: not redo db if it already exists.
-     do_cov_onrefseqs("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
-                     "${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}",
+     
+     reffa="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}"
+     make_db_for_blast( reffa, "FALSE")   // FALSE refers to: not redo db if it already exists.
+     do_cov_on_viralcandidates("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
+                     make_db_for_blast.out.DB,
                      contigs_fa,
                      assign_byr,
                      params.bl_suffix
@@ -509,8 +511,8 @@ workflow coverage_onrefseqs() {
 
    
     emit:
-      blastout=do_cov_onrefseqs.out.BLOUT
-      coverage=do_cov_onrefseqs.out.COV
+      blastout=do_cov_on_viralcandidates.out.BLOUT
+      coverage=do_cov_on_viralcandidates.out.COV
 
 }
 
@@ -625,7 +627,7 @@ workflow {
                   blOUT=coverage_onrefseqs.out.blastout                   
                   covOUT=coverage_onrefseqs.out.coverage
             } else {
-                  Channel.from("TAXONOMY APPROACH IS NOT UNDERSTOOD... please check your spelling!").view()
+                  Channel.from("TAXONOMY APPROACH IS NOT AVAILABLE... please check your spelling!").view()
                   blOUT=""                   
                   covOUT=""
             }

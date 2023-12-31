@@ -16,21 +16,22 @@ process coverage_plots {
     rdir="${params.amplicon_refseqs_dir}/gff_refgenomes"
     samp_id=pebam.split('/')[-1].toString().replaceAll("_pe.bowtie.sorted.mapped.bam","")
     //idtoname="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis.ids"
-    infofl="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis.ids"
+    infofl="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}"
     outdir="${params.reports_dir}/coverage_figures"
     """
      if [ -s $covfl ]; then 
-                touch  ${gffblast}
+          bash ${params.bindir}/cov-blast2gff.sh  ${covfl}   ${blastout}   ${gffblast}
      else
-        bash ${params.bindir}/cov-blast2gff.sh  ${covfl}   ${blastout}   ${gffblast}
+          touch  ${gffblast};
      fi;
         
-     Rscript ${params.bindir}/virwaste_coverage_figures.R         \
-             ${rdir}          ${rdir}/refseqs_coordinates.tbl     \
-             ${samp_id}       ${pebam}         ${sgbam}           \
-             ${gffblast}      ${infofl}                           \
-             ${outdir}                                            \
-            2> ${params.reports_dir}/coverage_figures/Coverage_${samp_id}.log;
+     Rscript ${params.bindir}/CAPTVRED_coverage_figures.R       \
+             ${rdir}          ${rdir}/refseqs_coordinates.tbl   \
+             ${samp_id}       ${pebam}         ${sgbam}         \
+             ${gffblast}      ${infofl}                         \
+             ${outdir}                                          \
+            2> ${params.reports_dir}/coverage_figures/Coverage_${samp_id}.log 1>&2;
+
     """
 
 }
