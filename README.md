@@ -21,7 +21,9 @@ Folder can be named: CAPTVRED. <br />
 cd MYPROJECT
 git clone https://github.com/CompGenLabUB/CAPTVRED.git
 ```
+
 ### __3.__ Prepare reference sequences. <br />
+
 
  #### __3.a.__ Preset reference sequences: <br /> 
 Preset reference sequences are provided as _tar.gz_ file in the following [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/REFSEQS.tar.gz). It includes RVDB_NT database for the contigs taxonomy, nr_euk database for fast preliminar classification and illumina adapters fasta file. To use this set of preset sequences download and extract: <br />
@@ -58,23 +60,30 @@ If you plan to use the capture-based approach: <br />
 #### __3.b.__ Customized reference sequences: <br /> 
 More information if provided in the [documentation file](https://github.com/JosepFAbril/CAPTVRED/blob/main/docs/readme_DOCUMENTATION_virwaste.md) 
 
+
 # For each new run or experiment:
 
+
 ### __4__ Prepare the filesystem for each run or experiment:<br /> 
+
 
 #### __4.1.__ Create directory for the new run:
 ```{.sh}
 mkdir MYPROJECT/RUN_00
 ```
 
-#### __4.1.__ Fill samples definition file:
+
+
+#### __4.2.__ Fill samples definition file:
 Place samples_definition.tbl template in the run directory and fill the required information.
 ```{.sh}
 cp MYPROJECT/CAPTVRED/samples_definition_template.tbl  MYPROJECT/RUN_00/samples_definition.tbl
 ```
 Samples definition file must be completed entering one sample per row. Additional metadata fields can be added if appropiate.<br />
+<br />
 
-#### __4.2.__ Set project variables and parameters: 
+
+#### __4.3.__ Set project variables and parameters: 
 Place projectvars template in the run/experiment folder and define variable names: <br />
 
 ```{.sh}
@@ -94,7 +103,7 @@ Despite all parameters can be modified directly from the commandline, some of th
 * Paths and filesystem
 The analyses filesystem is described in this block. 
 The most important ones are:
-  -  ***$RDIR*** ( :star: )- Path to the root directory (i.e./data/metagenomics/MYPROJECT). **You must set this variable in the file** <br />
+  -  ***$RDIR*** ( :star: )- Path to the root directory (i.e./data/metagenomics/MYPROJECT). <br />
   -  ***$NXFDIR*** - path to the CAPTVRED pipeline directory, by default set to *$RDIR/CAPTVRED* <br /> 
   -  ***$BDIR*** - path to the run directory or base directory, by default set to *${RDIR}/${RUNID}* <br />
   - ***$REFSQD*** - path to the reference sequences directory. 
