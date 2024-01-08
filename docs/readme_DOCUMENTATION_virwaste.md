@@ -397,6 +397,24 @@ More information:
 **Coverage Figures**
 -->
 
+# Files in the repository:
+In the Nextflow repository for the CAPTVRED pipeline, one can find the following files:
+* projectvars.sh: &rarr; this file is not part of the nextflow environment, it is used to set the local directories before launching nextflow.
+* nextflow.config : &rarr; Environment variables. This file is the same for all the runs. This file is read by default by nextflow (it must be placed in the project directory or the base directory).
+* main.nf : &rarr; Controls workflow
+
+
+Nextflow Modules:
+* rawfq_clean.nf &rarr; BBDuk implementation for reads cleanning
+* seq_stats.nf &rarr; fastQC and  MultiQC implementation. These quality control programs are run at different points in the workflow to keep track of the data quality. 
+* reads_align.nf &rarr; Bowtie processes: create an index and run the alignment.
+* reads_assembly.nf &rarr; megahit, trinity and spades
+* contigs_align.nf &rarr; blast processes: prepare the database and run the alignment.
+* contigs_taxonomy.nf &rarr; Taxonomic analysis of assembled contigs using kaiju.
+
+
+
+
 # Dependencies:
 
 
