@@ -83,6 +83,7 @@ mkdir -vp $TAXDIR/reads_taxon
 mkdir -vp $TAXDIR/contigs_taxon/blastn
 mkdir -vp $TAXDIR/contigs_taxon/tblastx
 mkdir -vp $TAXDIR/contigs_taxon/kaiju
+mkdir -vp $TAXDIR/taxon_viral_candidates
 
 export RPTD="$BDIR/reports";
 mkdir -vp $RPTD;
