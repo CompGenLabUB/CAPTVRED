@@ -1,5 +1,18 @@
-# Prepare the environment
-## Projectvars.sh file
+# CONTENTS:
+- [Environment set up](Environment~set~up)
+     - [Projectvars file](Projectvars~file)
+    - [Configuration file](Configuration~file)
+     - [Data summary](Data~summary)
+     - [Input data](Input~data)
+     - [Reference sequences](Reference~sequences)<br /><br />
+- [Running CAPTVRED](Running~CAPTVRED)
+    - [Clone the repository](Clone~the~repository)
+    - [Rerunning](Rerunning)
+    - [All options and parameters](All~options~and~parameters)<br /><br />
+- [Pipeline detailed description](Pipeline~detailed~description)
+<br /><br />
+# Environment set up
+### Projectvars file
 
 Includes all environment variables necessary to run the pipeline. When 
 this script is executed the whole directories filesystem is created.
@@ -40,7 +53,7 @@ After running _projectvars.sh_:
 * samples_definition.tbl must be placed directly on the $BDIR
 * reference sequences (in fa.gz) format must be placed (or linked) in the REFSEQS directory.
 
-## Configuration file:
+### Configuration file:
 
 The configuration file is named *nextflow.config*, you can find it in the workflow main directory. 
 It contains the default variables used in each of the steps of the pipeline. 
@@ -70,7 +83,7 @@ nextflow run https://github.com/JosepFAbril/virwaste --NCPUS 16
 You can find more information on how to custom and provide the configuration file in the
  [nextflow config documentation](https://www.nextflow.io/docs/latest/config.html) .
 
-## Data summary:
+### Data summary:
 
 A tabular file containing information about the samples is necessary to 
 run the pipeline (only the samples described in this tabular file will 
@@ -93,7 +106,7 @@ changed in such a way that raw reads keep their original ID while clean reads (a
 everything that comes after) are renamed into de sample ID.) 
 If you are not interested in modifying the ids, use the same code in both columns.
 
-## Input data:
+### Input data:
 
 All samples must be in fastq.gz format. All of them must be placed in the 
 same directory. 
@@ -129,7 +142,7 @@ is the pattern for the first file of each pair, and `R1="_r02"`, since this
 is the pattern for the second file of each pair.
 
 
-## Reference sequences
+### Viral candidates reference sequences
 
 __Tabular info file__ <br />
 Descriptive tabular file including the NCBI Id, full name, short name and 
@@ -175,33 +188,29 @@ __Kaiju Databases__ <br />
 Taxonomic classification with kaiju is performed by default using the RVDB database as default. 
 However, it can be changed to any other set of sequences. "nr_euk", "refseq" and "viruses" databases are provided ready to use in the [kaiju materials website](https://bioinformatics-centre.github.io/kaiju/downloads.html)
 
-# Run the pipeline
-
-## Use the GitHub link
-
-```{.sh}
-nextflow run https://github.com/JosepFAbril/virwaste 
-```
-
-## Download and install manually the pipeline
+# Running CAPTVRED
+### Clone the repository
 
 Clone the repository from GitHub
+Running command with default workflow and parametes will be:
 
 ```{.sh}
 nextflow run CAPTVRED [optional parameters] -with-report $RPTDR/Nextflow_execution_report.html
 ```
 
-## Rerun
+### Rerunning
 If the pipeline crashes at some point it can continue the execution from the last cached results by using the argument *-resume*.
 
 ```{.sh}
 nextflow run CAPTVRED [optional parameters] -with-report $RPTDR/Nextflow_execution_report.html -resume
 ```
 
+### All options and parameters
 
-# Detailed description of the pipeline steps
 
-## Quality:
+# Pipeline detailed description 
+
+### Quality:
 
 Reads quality is performed at four different stages during the pipeline, 
 (1) in the raw reads (before any manipulation of the data), (2) in the 
@@ -222,7 +231,7 @@ More information:
 * [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) 
 * [MultiQC](https://multiqc.info/)
 
-## Cleaning
+### Cleaning
 
 Reads cleaning is performed using 
 [BBDuk(BBMap version 38.96)](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/), 
@@ -263,7 +272,7 @@ in the config file or directly from the command line.)
 More information: [BBDUK guide](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/)
 
 
-## Filter and discard non-viral reads
+### Filter and discard non-viral reads
 
 Before mapping or assembling steps, we try to discard reads identified as
 non-viral species (such as eukaryotic, archaea, or bacterial DNA). To do so, 
@@ -305,7 +314,7 @@ More information:
 * Seqkit [documentation](https://bioinf.shenwei.me/seqkit/)
 
 
-## Reads assembly:
+### Reads assembly:
 
 The final set of reads is assembled into contigs for the further taxonomic
 analysis. 
@@ -356,12 +365,12 @@ More information:
 
 
 
-## Taxonomic classification: 
+### Taxonomic classification: 
 
-### Nucleotide-level classification:
-### Protein-level classification:
+#### Nucleotide-level classification:
+#### Protein-level classification:
 
-## Reads alignment on reference sequences:
+### Reads alignment on reference sequences:
 
 The final set of contigs is aligned against the set of reference sequences (the
 ones used to design the capture probes) to see which species were found 
@@ -397,7 +406,7 @@ More information:
 **Coverage Figures**
 -->
 
-# Files in the repository:
+### Files in the repository:
 In the Nextflow repository for the CAPTVRED pipeline, one can find the following files:
 * projectvars.sh: &rarr; this file is not part of the nextflow environment, it is used to set the local directories before launching nextflow.
 * nextflow.config : &rarr; Environment variables. This file is the same for all the runs. This file is read by default by nextflow (it must be placed in the project directory or the base directory).
