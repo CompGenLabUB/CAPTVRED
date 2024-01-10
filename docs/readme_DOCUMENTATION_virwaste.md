@@ -172,8 +172,9 @@ If the filtering step is performed using blastn (default) or tblastx, the defaul
 If you with to use a different database for either blastn or tblastx you need to download them and place (or link) the file in the reference sequences directory. When running the pipeline, the ``` --params.blast_ref_db_name "database_name" ``` option must be added to the command line. (If you are interested in using tblastx approach, please note that it is not the default approach for the taxonomic classification, if you with to use this algorithm you should enable ```--params.taxalg TBLASTX``` as well.)
 
 
-__Bbmap resources__
-For the cleanning step performed with bbduk, the sequences of the adapters are required. Those can be linked directly to the bbmap location. However, in the [tar.gz file](https://compgen.bio.ub.edu/datasets/CAPTVRED/REFSEQS.tar.gz) provided the fasta file as well.
+__Bbmap resources__<br />
+
+For the cleanning step performed with bbduk, the sequences of the adapters are required. Those can be linked directly to the bbmap location. However, in the [tar.gz file](https://compgen.bio.ub.edu/datasets/CAPTVRED/REFSEQS.tar.gz) provided the fasta file as well. If you prefer to use this file from any other directory you can use the command line option:  ``` --params.bbdukREF "dir/to/location" ```.
 
 
 # Running CAPTVRED
@@ -252,7 +253,7 @@ default, in this pipeline the minlength is set to 32.
 
 Minimum average quality, reads with average quality (after trimming) below 
 this will be discarded. BBDuk, by default has no threshold value (maq=0), 
-in this pipeline, it is set to 10.
+for CAPTVRED, threshold is set to 10.
 
 (Remember that you can [modify any of the parameters](#configuration-file) 
 in the config file or directly from the command line.)
@@ -264,7 +265,7 @@ More information: [BBDUK guide](https://jgi.doe.gov/data-and-tools/software-tool
 
 Before mapping or assembling steps, we try to discard reads identified as
 non-viral species (such as eukaryotic, archaea, or bacterial DNA). To do so, 
-a taxonomical classification is performed using [Kaiju](https://kaiju.binf.ku.dk/)(v.1.9.0).
+a fast taxonomic classification is performed using [Kaiju](https://kaiju.binf.ku.dk/)(v.1.9.0).
 Paired and single reads are assigned to a taxonomic group separately and,
 later, merged in the same file to generate a tab-separated summary and a 
 krona plot in HTML format (you can find these files in `$BDIR/taxonomy/kaiju/"sample_ID"/reads_taxon` directory). 
