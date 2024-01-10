@@ -50,7 +50,8 @@ export BL_DB_IF="C-RVDB_allentries_info.txt"
 
 #Kaiju databases
 export KAI_DB_D="${REFSQSD}/kaijudb";  #Directory where the kaiju databases are installed
-export KAI_DB_NM="refseq";
+export KAI_DB_NM="nr_euk";
+export KAI_DB_NMraw="rvdb";
 
 #BBduk resources
 export BBDUK_RES="${REFSQSD}/bbmap/resources" # resources required for bbduk.sh to work
