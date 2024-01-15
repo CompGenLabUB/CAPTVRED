@@ -30,7 +30,7 @@ Preset reference sequences are provided as _tar.gz_ file in the following [link]
 
 ```{.sh}
 cd MYPROJECT
-wget https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_preset_REFSEQS.tar.gz
+wget https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_refseqs.tar.gz
 tar –xvzf REFSEQS.tar.gz
 ```
 If you plan to use the capture-based approach: <br />
