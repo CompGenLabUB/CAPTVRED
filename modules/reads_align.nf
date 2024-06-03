@@ -45,7 +45,7 @@ process bowtie_amplicons_alignment {
       val(sgle)
     
     output:
-    
+    bowtie_amplicons_alignment
       val "${odir}/${pe_root}.bowtie.sorted.mapped.bam",   emit: bamPE
       
     script:

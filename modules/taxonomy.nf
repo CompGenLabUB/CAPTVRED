@@ -301,9 +301,6 @@ process discard_nonviral {
      val "${params.clnfq_dir}/${samp_id}_pe2.filtered.fastq.gz", emit: PE2out
      val "${params.clnfq_dir}/${samp_id}_sgl.filtered.fastq.gz", emit: SGLout
      
-     //when:
-       //txn_names_tbl =~ /nr_euk/
-     
     script:
 
      samp_id=txn_names_tbl.split('/')[-1].split('[.]')[0].replaceAll("_all", "")

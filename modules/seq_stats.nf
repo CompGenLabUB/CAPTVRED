@@ -9,7 +9,8 @@ process fastQC {
       
     script:
         // println "## FASTQC on sample: $x"
-        odir=x.toString().replaceAll(".gz", ".QC")
+        ofl=x.toString().split("/")[-1].replaceAll(".gz", ".QC")
+        odir="$params.rawqc_dir/$ofl"
         logfl=x.toString().split("/")[-1].replaceAll(".gz", ".log")
         logfl="$params.logs_dir/fastQC_$logfl"
 

@@ -1,20 +1,15 @@
 #! /usr/bin/env nextflow
 
-include { bbduk_clean; samps_idtranslate } from './rawfq_clean.nf'
-include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './seq_stats.nf'
-include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './reads_align.nf'
-include { megahit_assembly_all; metaspades_assembly} from './reads_assembly.nf'
-include { index_seqs; index_seqs as index_refs; make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_onrefseqs; do_cov_on_viralcandidates } from './contigs_align.nf'
-include { kaiju_raw; discard_nonviral; kaiju_contigs; kaiju_summarize; extract_ids  } from './taxonomy.nf'
-include { coverage_plots; align_counts_plot } from './plots.nf'
-include { handle_contamination_pr } from './contamination.nf'
-include { fill_html_report; make_summary_tbl } from './sum_and_report.nf'
-
-/* THE DISCARDED:
-include { do_blast_kaiju; merge_blast_outs } from './contigs_align.nf'
-include { taxonid_to_fasta; readid_to_fasta }from './taxonomy.nf'
-include { best_reciprocal_hit } from './contgis_align'
-*/
+include { bbduk_clean; samps_idtranslate } from './modules/rawfq_clean.nf'
+include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './modules/seq_stats.nf'
+include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './modules/reads_align.nf'
+include { megahit_assembly_all; metaspades_assembly} from './modules/reads_assembly.nf'
+include { make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_onrefseqs; do_cov_on_viralcandidates } from './modules/contigs_align.nf'
+include { kaiju_raw; discard_nonviral; kaiju_contigs; kaiju_summarize; extract_ids  } from './modules/taxonomy.nf'
+include { coverage_plots; align_counts_plot } from './modules/plots.nf'
+include { handle_contamination_pr } from './modules/contamination.nf'
+include { fill_html_report; make_summary_tbl } from './modules/sum_and_report.nf'
+include { create_logd; create_filesys } from './modules/init.nf'
 
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
@@ -42,20 +37,71 @@ log.info """\
  =======================================
  """
 
-workflow init_samples() {
+workflow init_refs () {
+  take:
 
   main:
-    println "# INIT: $samplesMap"
+
+    //For non-viral discard:
+      // CHECK SI EXISTEIX AQUESTA DB
+    db_for_kaiju($db_for_filter)
+
+    //For blast:
+
+    if (params.taxalg ==~ /(?i)KAIJU/ ) { 
+        db_for_kaiju($kaiju_db)
+    } else if (params.taxalg ==~ /(?)BLASTN/ ){
+        init_rvdb(params.rvdb_link, params.db_name)
+        merge_rvdb_setref(init_rvdb.out, params.set_seqs)
+    }
 
   emit:
     ""
 }
 
 
+
+workflow init_run() {
+
+  main:
+    println "# INIT: $samplesMap"
+   /* if (params.assembler ==~ /(?i)MEGAHIT/){
+        params.subasb_dir="$params.asbl_dir/megahit"
+    }else if (params.assembler ==~ /(?i)METASPADES/ ) {
+        params.subasb_dir="$params.asbl_dir/metaspades"
+    }
+
+    if (params.taxalg ==~ /(?i)KAIJU/ ) {
+      params.subtax_dir="$params.taxdir/kaiju"
+    } else if (params.taxalg ==~ /(?)BLASTN/ ){
+      params.subtax_dir="$params.taxdir/blastn"
+    } else if (params.taxalg ==~ /(?)TBLASTX/ ){ 
+      params.subtax_dir="$params.taxdir/tblastx"
+    }
+*/
+    // thyfilesys=
+    create_logd(params.logs_dir)
+    def fsys = Channel.of( params.tmp_dir,
+                           params.rawfq_dir,
+                           params.clnfq_dir,
+                           params.ampaln_dir,
+                           params.asbl_dir,
+                           params.subasb_dir,
+                           params.taxdir,
+                           params.subtax_dir,
+                           params.reports_dir)
+    fsys.view() 
+    create_filesys(fsys, create_logd.out)
+
+  emit:
+    create_filesys.out
+}
+
+
 workflow fastqc_onrawseqs() {
 
   take:
-    x
+    logfl
 
   main:
    
@@ -65,15 +111,10 @@ workflow fastqc_onrawseqs() {
          ids << illuminaID
     }
     def spstr=ids.join(",")
-    def regx="$params.rawfq_dir/{$spstr}$params.rawfq_sfx"
+    def regx="$params.fastq_dir/{$spstr}$params.rawfq_sfx"
     
     println "### $spstr ###"
-    //def regexp= "^($spstr)" << "(${R1}|${R2})*.gz" 
-    // Channel.fromPath(params.rawfq).view()
     spschan=Channel.fromPath("$regx")
-    //spschan=spsch.filter({ it =~ /"$spstr"/ })
-    //spschan=spsch.grep({ it.toString() =~ /"$spstr"/ })
-    // spschan.view()
     fastQC(spschan) | collect | multiQC_raw
 }
 
@@ -92,9 +133,9 @@ workflow reads_clean() {
          //for each sample and the second one is the new root for the cleanseqs.
     def thysamples = samplesMap
     thysamples.each { sampleID, illuminaID ->
-         def newsamp=["$params.rawfq_dir/$illuminaID", "$params.clnfq_dir/$sampleID"]
+         def newsamp=["$params.fastq_dir/$illuminaID", "$params.clnfq_dir/$sampleID"]
          paths_list << newsamp
-    }
+    }samps_idtranslate
     
     
     if (params.trim_adapters == true ) {
@@ -136,10 +177,6 @@ workflow idtranslate() {
     }
     
     samps_idtranslate(x, Channel.from(paths_list))
-  //  bbduk_clean(x, Channel.from(paths_list)) 
-
-  //  fastQC( bbduk_clean.out.mix() ) | collect | multiQC_clean
-
     
   emit:
    PE1=samps_idtranslate.out.outPE1
@@ -173,12 +210,10 @@ workflow amplicon_sequences_dbinit() {
       refseqs
 
     main:
-      //generate_index_bowtie(x,refseqs)
       generate_index_bowtie(refseqs)
       
     emit:
       generate_index_bowtie.out
-
 
 }
 
@@ -216,34 +251,6 @@ workflow align_summary() {
 }
 
 
-
-/*
-workflow megahit_assembly_flow () {
-    take:
-      pe1
-      pe2
-      sgl
-    
-    main:
-      ref_fa="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
-      megahit_assembly_all(pe1,pe2, sgl)
-      
-      blast_flow( ref_fa, megahit_assembly_all.out.CGSout)
-      blast_flow_rev( megahit_assembly_all.out.CGSout, ref_fa)
-
-      QOR=blast_flow.out
-      ROQ=blast_flow_rev.out
-          
-      best_reciprocal_hit(megahit_assembly_all.out.CGSout, ref_fa, QOR, ROQ )
-      brh=best_reciprocal_hit.out
-
-    emit:
-      TBL=brh
-      FASTA=megahit_assembly_all.out.CGSout
-      BLOUT=QOR
-}
-*/
-
 workflow trinity_assembly_flow () {
     take: 
       pe1
@@ -254,7 +261,6 @@ workflow trinity_assembly_flow () {
       
       ref_fa="${params.amplicon_refseqs}"
       trinity_assembly_pe(pe1, pe2, sgl)
-      //trinity_assembly_sg(sgl)
       blast_flow(ref_fa, trinity_assembly_pe.out)
       blast_flow_rev(trinity_assembly_pe.out, ref_fa)
       
@@ -268,54 +274,6 @@ workflow trinity_assembly_flow () {
       FASTA=trinity_assembly_pe.out.CGSout
       BLOUT=QOR
 }
-
-
-//workflow blast_flow() {
-//   take:
-//    ref_fasta
-//    query_fasta
-     
-//   main:
-//        make_db_for_blast( ref_fasta, "FALSE") 
-//        if (params.blast_approach ==~ /(?i)blastn/) {
-//            do_blastn(query_fasta, make_db_for_blast.out.DB, params.taxslowdir)
-//            outf=do_blastn.out
-//        }
-        
-//        if (params.blast_approach ==~ /(?i)tblastx/) {
-//            do_tblastx(query_fasta, make_db_for_blast.out.DB)
-//            outf=do_tblastx.out
-//        }
-//  emit:
-//    outf
-//}
-
-//workflow blast_flow_rev() {
-//   take:
-//     ref_fasta
-//     query_fasta
-//   main:
-//        make_db_for_blast(ref_fasta, "FALSE")
-//        if ( make_db_for_blast.out.CTRL.toString() == 1){
-//            if (params.blast_approach ==~ /(?i)blastn/) {
-//                do_blastn(query_fasta, make_db_for_blast.out.DB.toString(), params.taxfastdir)
-//                outf=do_blastn.out
-//            }
-//            
-//            if (params.blast_approach ==~ /(?i)tblastx/) {
-//                do_tblastx(query_fasta, make_db_for_blast.out.DB)
-//                outf=do_tblastx.out
-//            }
-//        }else{
-//            blast_q=query_fasta.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
-//            blast_r=ref_fasta.toString().split('/')[-1]
-//            outf="${params.contigs_blast_dir}/${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
-//            write_out= new File("${outf}")
-//            write_out.write ""  
-//        }
-//    emit:
-//    outf
-//}
 
 
 workflow vizualise_results_flow() {
@@ -340,12 +298,8 @@ workflow direct_blast_n () {
         ref_fasta
         all_contigs
     main:
-        
-        //readid_to_fasta(unaligned_ids)
-        //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
 
         make_db_for_blast( ref_fasta, "FALSE") 
-        // all_contigs.view()
         do_blastn(all_contigs, make_db_for_blast.out.DB, params.taxbndir)
         
         if (params.handle_contamination == true ) {
@@ -361,10 +315,8 @@ workflow direct_blast_n () {
         }
         
         blast_sum_coverage(blastOut, "F", "F" )
-        // blast_byread=blast_sum_coverage.out.BYR
         
     emit:
-        // REP=blast_byread
         BY_R=blast_sum_coverage.out.BYR
         BY_SQ=blast_sum_coverage.out.BYSQ
         BY_SP=blast_sum_coverage.out.BYSP
@@ -378,9 +330,6 @@ workflow direct_blast_tx () {
         ref_fasta
         all_contigs
     main:
-        
-        //readid_to_fasta(unaligned_ids)
-        //ref_database="${params.blast_refseqs_dir}/${params.blast_ref_db_name}"
 
         make_db_for_blast( ref_fasta, "FALSE") 
         do_tblastx(all_contigs, make_db_for_blast.out.DB, params.taxtbxdir)
@@ -398,10 +347,8 @@ workflow direct_blast_tx () {
         }
         
         blast_sum_coverage(blastOut, "F", "F" )
-        // blast_byread=blast_sum_coverage.out.BYR
         
     emit:
-        // REP=blast_byread
         BY_R=blast_sum_coverage.out.BYR
         BY_SQ=blast_sum_coverage.out.BYSQ
         BY_SP=blast_sum_coverage.out.BYSP
@@ -410,87 +357,6 @@ workflow direct_blast_tx () {
         DONE=blast_sum_coverage.out.SUM2
 }
 
-/*
-workflow unc_contigs_blast (){
-    take:
-        uncids
-    
-    main:
-        sp=uncids.toString().split('/')[-1].split('[.]')[0]
-
-        // Queries fasta:
-        readid_to_fasta(uncids)
-        
-        // Reference fasta:
-        ref_fa="${params.blast_refseqs_dir}/${params.blast_ref_db_name}";
-             
-        // Blast and output processing:
-            
-        make_db_for_blast(ref_fa, "FALSE")
-        //  make_db_for_blast.out.DB.view()
-        do_tblastx(readid_to_fasta.out.FA, make_db_for_blast.out.DB, params.taxfastdir)
-       // blast_sum_coverage(do_blastn.out, uncids )
-       // blast_rpt=blast_sum_coverage.out.TBL
-       // stillunc=blast_sum_coverage.out.UNIDS
-       
-    emit:
-          SP=sp
-          BLOUT=do_tblastx.out
-         // tuple sp, val(do_blastn.out)
-         
-}
-*/
-
-/* workflow class_contigs_blast (){
-    take:
-        clids
-        taxids
-        
-    main:
-       // sp=clids.toString().split('/')[-1].split('[.]')[0]
-        
-        
-            // Queries fasta:
-            readid_to_fasta(clids)
-            
-            // refseqs fasta:
-            taxonid_to_fasta(taxids)
-            ref_fa=taxonid_to_fasta.out.REF
-            
-            // Blast and output processing:
-            
-            make_db_for_blast(ref_fa, "TRUE")
-            do_blast_kaiju(readid_to_fasta.out.FA, params.taxfastdir, make_db_for_blast.out.DB)
-
-    emit:
-        BLOUT=do_blast_kaiju.out
-
-} */
-
-/* workflow all_contigs_blast (){
-    take:
-      kaijuout
-        
-    main:
-        
-            extract_ids(kaijuout)
-            
-           // a. // Blast of unclass contigs into reference db. 
-                unc_contigs_blast(extract_ids.out.UNIDS)
-                
-           // b. // Blast of class contigs into reference sequences.
-                class_contigs_blast(extract_ids.out.CLIDS, extract_ids.out.CLT)
-                
-           // c. // Summarize results
-                merge_blast_outs(class_contigs_blast.out.BLOUT, unc_contigs_blast.out.BLOUT )
-                // merge_blast_outs.out.BALL.view()
-                blast_sum_coverage(merge_blast_outs.out.BALL, extract_ids.out.CLIDS, extract_ids.out.UNIDS)
-
-    
-    emit:
-        ""
-
-} */
 
 workflow coverage_onrefseqs() {
     
@@ -524,21 +390,22 @@ workflow {
     println "# Project   : $workflow.projectDir"
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.sampletbl"
+   
+    init_run() 
     
     // 1 // Clean reads // //
-   
-        init_samples()
-        fastqc_onrawseqs(init_samples.out)
-        reads_clean(init_samples.out)
-   
+    
+        fastqc_onrawseqs(init_run.out)
+        reads_clean(init_run.out)
+    
     // 2 // Discard reads identified as nonviral // //
-   
+    
         //KDB=Channel.from(params.kaijudbs)
-        KDB=Channel.from(params.kaijuDBRAW)
+        KDB=Channel.from(params.filtDB)
         CLNR=reads_clean.out.merge()
         to_kaiju=KDB.combine(CLNR).merge()
         reads_filter_nonviral(to_kaiju)
-        
+/*        
     // 3 // Map reads on reference genomes fasta // //  (used to design the probes) 
     
         tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
@@ -667,17 +534,9 @@ workflow {
             // taxon_outkaiju  (*.rvdb.names.out file)
             // blast_unc_x_cl.RPT
             // blast_unc_x_cl.out.RPT
-            
-
-
+*/         
 }
 
 workflow.onComplete {
 	log.info ( workflow.success ? "\nDone! Open the reports in your browser...\n" : "Oops .. something went wrong: ${workflow.errorMessage}" )
 }
-
-///// DISCARDED //////
- // 5.2. // Blast of unclass contigs into classified set. 
-        
-       // taxon_outkaiju=kaiju_contigs.out.filter{ it.contains("rvdb")}
-       // blast_unc_x_cl(taxon_outkaiju)     // Outputs blast report if exists OR empty channel in nothing were found

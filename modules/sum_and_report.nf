@@ -67,7 +67,7 @@ process fill_html_report {
             ${params.reports_dir}                                        \
             ${params.runID}                                              \
             ${samples_sum}                                               \
-            ${params.nfscripts_dir}/CAPTVRED_final_report_template.html  \
+            ${params.html_dir}/CAPTVRED_final_report_template.html  \
             ${final_html}     ${params.taxalg}
       """
 }

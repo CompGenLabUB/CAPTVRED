@@ -1,5 +1,6 @@
 #! /usr/bin/env nextflow
 
+
 process make_db_for_blast {
     input:
         val(refseqs_fasta)
@@ -17,7 +18,6 @@ process make_db_for_blast {
         db_name=dblist[-1]
         cdfile=[dblist[0..dblist.size()-2].join('/'), "blastdb_created_genome.cdate"].join('/')
         spid=refseqs_fasta.toString().split('/')[-1].split('[.]')[0]
-       // fa_fl= new File("${refseqs_fasta}")
        """
         if [ -s ${refseqs_fasta} ]; then
               if [ -e ${cdfile} -a ${redodb} == "FALSE" ]; then
@@ -104,63 +104,6 @@ process do_blastn {
 
 }
 
-/* process do_blast_kaiju {
-
-    input:
-        val query // with whole path
-        val out_dir // output directory
-        val dummy
-        
-    output:
-        val "${blast_dir}/${blast_algn}"
-
-    script:
-
-       spid=query.toString().split('/')[-1].split('[.]')[0]
-       blast_q=query.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
-       blast_r="${blast_q}.reference_blastdb" // rdb.toString().split('/')[-1]
-       db=query.toString().replaceAll(".gz", "").replaceAll(".fa", "")
-       rdb="${db}.reference_blastdb"
-       blast_algn="${blast_q}_ON_${blast_r}.${params.blast_approach}.tbl"
-       blast_dir="${out_dir}/${spid}"
-       dbindex="${rdb}.nin";
-       """
-
-       echo "$dummy";
-        if [ -d $blast_dir ]; then 
-                echo "$blast_dir"; 
-            else 
-                mkdir $blast_dir; 
-        fi;
-
-        if [[ -e ${dbindex} ]]; then
-            if [[ ${query} =~ .gz\$ ]]; then
-              gzip -dc ${query} |\
-                 tblastx -query  -  -db ${rdb}                      \
-                    -num_alignments 1               \
-                    -out ${blast_dir}/${blast_algn}    \
-                    -dbsize ${params.taxondbsize}                     \
-                    -outfmt \"${params.bl_outfmt}\"    \
-                    -num_threads ${params.NCPUS}       \
-                    2> ${blast_dir}/${blast_algn}.log 1>&2;
-            else
-              tblastx -query ${query} -db ${rdb}          \
-                  -num_alignments 1               \
-                  -out ${blast_dir}/${blast_algn}    \
-                  -dbsize ${params.taxondbsize}                     \
-                  -outfmt \"${params.bl_outfmt}\"    \
-                  -num_threads ${params.NCPUS}       \
-                   2> ${blast_dir}/${blast_algn}.log 1>&2;
-            fi;
-        else
-            echo "No database found for blast." \
-                 > ${blast_dir}/${blast_algn}.log;
-        fi;
-       """
-
-}
- */
-
 process do_tblastx {
 
     input:
@@ -220,61 +163,6 @@ process do_tblastx {
 
 }
 
-
-process best_reciprocal_hit {
-    input:
-        
-        val(q_fa)  //query fasta ( contigs )
-        val(r_fa)  //reference fasta 
-        val(qor_blast)  // query onto reference blast (whole path)
-        val(roq_blast)  // reference onto query blast (whole path)
-    
-    output:
-        val "${out_brh}.rbbh.tbl"
-        
-    exec:
-    
-    out_brh=qor_blast.replaceAll(/.tbl$/, "")
-    qor_fl= new File("${qor_blast}")
-    roq_fl= new File("${roq_blast}")
-    if( qor_fl.size() > 0 && roq_fl.size() > 0 ) {
-
-        """
-            python2 ${BIND}/rbbh.py       \
-                ${qor_blast}   ${q_fa}        \
-                ${roq_blast}   ${r_fa}        \
-                1e-10    0                    \
-              > ${out_brh}.rbbh.tbl    \
-             2> ${out_brh}.rbbh.log;
-        """
-    }else{
-        brh_fl= new File("${out_brh}.rbbh.tbl")
-        brh_fl.write ""
-    
-    }
-}
-
-/* process merge_blast_outs {
-    input: 
-        val(bl1)
-        val(bl2)
-    
-    output:
-        val("${blast_all}"), emit: BALL
-    
-    script:
-        splist=bl1.toString().split('[.]')
-        sproot=splist[0..3].join(".")
-        blast_all="${sproot}.clas+unc_blast.${params.blast_approach}.tbl"
-        spid=splist[-1]
-    """
-    if [ -f $bl1 -a -f $bl2 ] ; then
-        cat ${bl1} ${bl2} >  ${blast_all} 2> ${blast_all}.log;
-    fi;
-    """
-
-} */
-
 process blast_sum_coverage {
     input:
         val(blastout)
@@ -288,7 +176,6 @@ process blast_sum_coverage {
         val(bysp), emit: BYSP
         val(stats), emit: SUM
         val(stats), emit: SUM2
-        //val("${blast_merge}_taxonomysum_byread.tbl"), emit: BYR
       
     script:
     blast_sumcov=blastout.replaceAll(/\.tbl/,".coverage.tbl")
@@ -309,8 +196,7 @@ process blast_sum_coverage {
      bysq="${params.reports_dir}/${sampid}.${blalg}_taxonomysum_bysequence.tbl"
      bysp="${params.reports_dir}/${sampid}.${blalg}_taxonomysum_byspecie.tbl"
      stats="${params.reports_dir}/${sampid}.${blalg}.stats.out"
-    // odir="${params.taxfastdir}/${sampid}"
-   //  unaling_ids=allqids.replaceAll(".ids", ".unaligned.ids")
+
     """
     if [ -s $blastout ]; then 
     ## Get summary of blast out coverage:
@@ -341,28 +227,8 @@ process blast_sum_coverage {
      cp  ${blast_merge}_taxonomysum_byspecie.tbl    ${bysp}
      cp  ${blast_merge}.stats.out                   ${stats}
     
-    """
-    // ## Get list of unclassified ids:
-    // ## gawk 'BEGIN{ while(getline<ARGV[1]>0) G[\$1]=\$1; ARGV[1]=""; } 
-    // ##       \$2 in G {} else { F[\$1]++; }
-    // ##       END{ for (f in F) print f; }
-    // ##       ' $blastout $allqids > $unaling_ids;
-    // ## grep -v  -f 
-    
-
+    """ 
 }
-
-
-process index_seqs () { 
-    input: 
-        val(thyfasta)
-    script:
-      """
-        seqkit faidx $thyfasta
-      """
-}
-
-
 
 process do_cov_onrefseqs () {  
        // Get FASTA FILES (refseqs and contigs) for coverage of refseqs ans perform blast analysis.

@@ -18,7 +18,7 @@ mkdir MYPROJECT
 cd MYPROJECT
 ```
 ### __2.__ Clone the repository of the pipeline.<br />
-Folder can be named: CAPTVRED). <br />
+Folder can be named: CAPTVRED. <br />
 ```{.sh}
 git clone https://github.com/CompGenLabUB/CAPTVRED.git
 ```
