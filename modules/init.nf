@@ -18,6 +18,7 @@ script:
     touch $logfl
     """
 }
+
 process create_filesys {
 
 input:
@@ -36,11 +37,11 @@ script:
 
 }
 
-
+/*
 process db_for_kaiju (){
 
     input:
-        dbname
+        val dbname
 
     output:
 
@@ -48,7 +49,7 @@ process db_for_kaiju (){
 
         logfl="$params.wdir/logs/prepare_db_for_kaijufilter_{$dbname}.log"
         """
-        kaiju-makedb -s $dbname >   2>&1
+        kaiju-makedb -s $dbname >  $logfl 2>&1
 
         """
 
@@ -62,7 +63,7 @@ process init_rvdb () {
         val dbname
 
     output:
-        dbname
+        val fullpath
 
     script:
         logfl="${params.wdir}/logs/init_dbs.log" 
@@ -71,7 +72,7 @@ process init_rvdb () {
 
         """
          echo "## ## DOWNLOADING DATABASE" >> $logfl
-         wget $link -P $params.refsqs_dir 2>> $logfl
+         wget $full_link -P $params.refsqs_dir 2>> $logfl
         """
 
 }
@@ -80,16 +81,18 @@ process init_rvdb () {
 process merge_rvdb_setref () {
 
     input:
-        val rvdb_fa
-        val set_fa
+        val rvdb_fa //Full path
+        val set_fa  //Full path
 
     output:
-        merged_fa  //Full path
+        val merged_fa  //Full path
     
     script:
-        merged_fa=rvdb_fa.toString().replaceAll(".fasta.gz|.fasta|.fa.gz|.fa", "+set.fasta.gz")
+        //  merged_fa=rvdb_fa.toString().replaceAll(".fasta.gz|.fasta|.fa.gz|.fa", "+set.fasta.gz")
+        merged_fa="${params.refsqs_dir}/rvdb+${params.setname}.fasta.gz"
         """
          cat $rvdb_fa $set_fa | gzip  -  > $merged_fa
         """
 
 }
+*/

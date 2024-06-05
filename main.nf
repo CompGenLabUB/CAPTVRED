@@ -10,6 +10,7 @@ include { coverage_plots; align_counts_plot } from './modules/plots.nf'
 include { handle_contamination_pr } from './modules/contamination.nf'
 include { fill_html_report; make_summary_tbl } from './modules/sum_and_report.nf'
 include { create_logd; create_filesys } from './modules/init.nf'
+include { db_for_kaiju; init_rvdb; merge_rvdb_setref } from './modules/init.nf'
 
 def samplesMap = [:]
 SamplesDef = file(params.sampletbl) //(samplestbl_file)
@@ -41,22 +42,25 @@ workflow init_refs () {
   take:
 
   main:
+    //prepare rvdb + set 
+      init_rvdb(params.rvdb_link, params.db_name )
+      merge_rvdb_setref(init_rvdb.out, params.set_seqs )
 
     //For non-viral discard:
       // CHECK SI EXISTEIX AQUESTA DB
-    db_for_kaiju($db_for_filter)
+      db_for_kaiju(params.filtDB)
 
     //For blast:
 
-    if (params.taxalg ==~ /(?i)KAIJU/ ) { 
+/*  if (params.taxalg ==~ /(?i)KAIJU/ ) { 
         db_for_kaiju($kaiju_db)
     } else if (params.taxalg ==~ /(?)BLASTN/ ){
-        init_rvdb(params.rvdb_link, params.db_name)
-        merge_rvdb_setref(init_rvdb.out, params.set_seqs)
+        // init_rvdb(params.rvdb_link, params.db_name)
+        // merge_rvdb_setref(init_rvdb.out, params.set_seqs)
     }
-
+*/
   emit:
-    ""
+    FULLDB=merge_rvdb_setref.out
 }
 
 
@@ -202,7 +206,7 @@ workflow reads_filter_nonviral() {
        discard_nonviral.out.SGLout
 }
 
-
+/*
 workflow amplicon_sequences_dbinit() {
 
     take:
@@ -216,16 +220,15 @@ workflow amplicon_sequences_dbinit() {
       generate_index_bowtie.out
 
 }
+*/
 
-
-workflow amplicon_sequences_align() {
+workflow reads_align_wf() {
 
    take:
      cluster_index_path
      pe1
      pe2
      sgl
-    
     
    main:
    
@@ -391,6 +394,7 @@ workflow {
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.sampletbl"
    
+    init_refs()
     init_run() 
     
     // 1 // Clean reads // //
@@ -405,8 +409,12 @@ workflow {
         CLNR=reads_clean.out.merge()
         to_kaiju=KDB.combine(CLNR).merge()
         reads_filter_nonviral(to_kaiju)
-/*        
-    // 3 // Map reads on reference genomes fasta // //  (used to design the probes) 
+
+    // 3 // Map reads on database   //  //
+        dbtobowtie=init_refs.out.FULLDB
+        generate_index_bowtie(dbtobowtie)
+        reads_align_wf(generate_index_bowtie.out, reads_filter_nonviral.out)
+/*    // 3 // Map reads on reference genomes fasta // //  (used to design the probes) 
     
         tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
         generate_index_bowtie(tobowtie)
@@ -519,8 +527,8 @@ workflow {
         // 6.2. // Plot coverage by genome (reads and contigs)
         
         vizualise_results_flow(
-                       amplicon_sequences_align.out.PE,
-                       amplicon_sequences_align.out.SG,
+                       reads_align_wf.out.PE,
+                       reads_align_wf.out.SG,
                        blOUT,
                        covOUT
                        )

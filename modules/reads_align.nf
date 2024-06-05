@@ -4,7 +4,7 @@ process generate_index_bowtie {
     input:
 
          //val dep
-         val x
+         val fastafl // full path
 
     output:
     
@@ -12,26 +12,25 @@ process generate_index_bowtie {
 
     script:
 
-        idx_path=x.toString().replaceAll(".fa.gz", "_index")
-        idx_files=file("${idx_path}.*.bt2")
+        idx_path=fastafl.toString().replaceAll(".fa.gz", "_index")
+        idx_files=file("${params.dbset_dir}.*.bt2")
 
        
         //bowtie2-buid generates AT LEAST 6 files, if less than 6 are found, db might be corrupted
         if( idx_files.size() >= 6 )
         
             """
-            cat ${params.amplicon_refseqs_dir}/bowtie_genome_indexed.cdate 1>&2;
-            
+            cat ${params.dbset_dir}/bowtie_genome_indexed.cdate 1>&2;
             """
             
         else
         
             """
              bowtie2-build --threads $params.NCPUS -f     \
-                          $x     ${idx_path}              \
+                          $fastafl     ${idx_path}              \
                           2> ${idx_path}.bowtiedb.log;
              date +"DB created on %Y/%m/%d %T %Z %s"      \
-                  > ${params.amplicon_refseqs_dir}/bowtie_genome_indexed.cdate;
+                  > ${params.dbset_dir}/bowtie_genome_indexed.cdate;
             """
 }
 
