@@ -14,18 +14,12 @@ workflow prepareblast (){
       ""
 } 
 
-
-
-
 // // // // // // MAIN // // // // // //  
     
     
     println "# Running   : $workflow.scriptId - $workflow.scriptName"
     println "# Project   : $workflow.projectDir"
     println "# Starting  : $workflow.userName  $workflow.start"
-    
-    
-
   
 workflow {
     def refseqs = "${workflow.projectDir}/references"
@@ -41,5 +35,4 @@ workflow {
      // db_for_kaiju(params.filtDB, create_logf.out)
     
      // prepareblast(params.blast_kaiju_db, create_logf.out)
-
 }

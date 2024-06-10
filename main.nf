@@ -10,19 +10,38 @@ include { coverage_plots; align_counts_plot } from './modules/plots.nf'
 include { handle_contamination_pr } from './modules/contamination.nf'
 include { fill_html_report; make_summary_tbl } from './modules/sum_and_report.nf'
 include { create_logd; create_filesys } from './modules/init.nf'
-include { db_for_kaiju; init_rvdb; merge_rvdb_setref } from './modules/init.nf'
+
+
+ //   params.basedir     =  "$workflow.launchDir"
+ //   params.bindir      =  "$workflow.projectDir/bin"
+ //   params.refseqs     =  "$workflow.projectDir/references"
+//
+ //   params.db_dir      =  "$params.refseqs/db"
+ //   params.dbset_dir   =  "$params.refseqs/$params.setname"
+//
+ //   params.tmp_dir     =  "${workflow.launchDir}/tmp"
+ //   params.rawqc_dir   =  "${params.basedir}/raw"
+ //   params.clnfq_dir   =  "${params.basedir}/clean"
+ //   params.ampaln_dir  =  "${params.basedir}/aln"
+ //   params.asbl_dir    =  "${params.basedir}/assembly"
+ //   params.taxdir      =  "${params.basedir}/taxonomy"
+ //   params.reports_dir =  "${params.basedir}/reports"
+ //   params.logs_dir    =  "${params.basedir}/logs"
+ //   params.html_dir    =  "${params.basedir}/html"
+
 
 def samplesMap = [:]
-SamplesDef = file(params.sampletbl) //(samplestbl_file)
+SamplesDef = file(params.samp) // (samplestbl_file)
 SamplesDef.eachLine {
     line -> {
-        def samp = line.split('\t')
+        def sampl = line.split('\t')
         // ignore lines stating with "#"
-        if (!samp[0].startsWith("#")) {
-            samplesMap.(samp[0]) = (samp[1])
+        if (!sampl[0].startsWith("#")) {
+            samplesMap.(sampl[0]) = (sampl[1])
         }
     }
 }
+
 
 log.info """\
  =======================================
@@ -38,37 +57,45 @@ log.info """\
  =======================================
  """
 
-workflow init_refs () {
-  take:
-
-  main:
-    //prepare rvdb + set 
-      init_rvdb(params.rvdb_link, params.db_name )
-      merge_rvdb_setref(init_rvdb.out, params.set_seqs )
-
-    //For non-viral discard:
-      // CHECK SI EXISTEIX AQUESTA DB
-      db_for_kaiju(params.filtDB)
-
-    //For blast:
-
-/*  if (params.taxalg ==~ /(?i)KAIJU/ ) { 
-        db_for_kaiju($kaiju_db)
-    } else if (params.taxalg ==~ /(?)BLASTN/ ){
-        // init_rvdb(params.rvdb_link, params.db_name)
-        // merge_rvdb_setref(init_rvdb.out, params.set_seqs)
-    }
-*/
-  emit:
-    FULLDB=merge_rvdb_setref.out
+if ( params.help ) {
+    help = """your_script.nf: A description of your script and maybe some examples of how
+             |                to run the script
+             |Required arguments:
+             |  --input_file  Location of the input file file.
+             |                [default: ${params.input_file}]
+             |
+             |Optional arguments:
+             |  --use_thing   Do some optional process.
+             |                [default: ${params.use_thing}]
+             |  -w            The NextFlow work directory. Delete the directory once the process
+             |                is finished [default: ${workDir}]""".stripMargin()
+    // Print the help with the stripped margin and exit
+    println(help)
+    exit(0)
 }
-
 
 
 workflow init_run() {
 
+  take:
+    directories
   main:
     println "# INIT: $samplesMap"
+
+    create_logd(params.logs_dir)
+      def fsys = Channel.of( directories)
+ //   def fsys = Channel.of( params.tmp_dir,
+ //                          params.rawfq_dir,
+ //                          params.clnfq_dir,
+ //                          params.ampaln_dir,
+ //                          params.asbl_dir,
+ //                          params.subasb_dir,
+ //                          params.taxdir,
+ //                          params.subtax_dir,
+ //                          params.reports_dir)
+    fsys.view() 
+    create_filesys(fsys, create_logd.out)
+
    /* if (params.assembler ==~ /(?i)MEGAHIT/){
         params.subasb_dir="$params.asbl_dir/megahit"
     }else if (params.assembler ==~ /(?i)METASPADES/ ) {
@@ -83,19 +110,6 @@ workflow init_run() {
       params.subtax_dir="$params.taxdir/tblastx"
     }
 */
-    // thyfilesys=
-    create_logd(params.logs_dir)
-    def fsys = Channel.of( params.tmp_dir,
-                           params.rawfq_dir,
-                           params.clnfq_dir,
-                           params.ampaln_dir,
-                           params.asbl_dir,
-                           params.subasb_dir,
-                           params.taxdir,
-                           params.subtax_dir,
-                           params.reports_dir)
-    fsys.view() 
-    create_filesys(fsys, create_logd.out)
 
   emit:
     create_filesys.out
@@ -385,17 +399,54 @@ workflow coverage_onrefseqs() {
 
 }
 
+workflow set_dep_params () {
+
+    params.basedir     =  workflow.launchDir
+    params.bindir      =  workflow.projectDir+'/bin'
+    params.refseqs     =  workflow.projectDir+'/references'
+
+    params.db_dir      =  params.refseqs + '/db'
+    params.dbset_dir   =  params.refseqs + '/$params.setname'
+
+    if (!params.tmp_dir) { params.tmp_dir     =  "${params.basedir}/tmp" }
+    params.rawqc_dir   =  "${params.basedir}/raw"
+    params.clnfq_dir   =  "${params.basedir}/clean"
+    params.ampaln_dir  =  "${params.basedir}/aln"
+    params.asbl_dir    =  "${params.basedir}/assembly"
+    params.taxdir      =  "${params.basedir}/taxonomy"
+    params.reports_dir =  "${params.basedir}/reports'"    
+    params.logs_dir    =  "${params.bdir}/logs"
+    params.html_dir    =  "${params.basedir}/html"
+  
+  emit:
+    [params.tmp_dir, params.rawfq_dir, params.clnfq_dir, params.ampaln_dir]
+ //   params.asbl_dir
+ //   params.subasb_dir
+ //   params.taxdir
+ //   params.subtax_dir
+ //   params.reports_dir
+
+}
+
 // // // // // // MAIN // // // // // //  
 
 workflow {
 
+    
+    //check_params()
     println "# Running   : $workflow.scriptId - $workflow.scriptName"
     println "# Project   : $workflow.projectDir"
+    println "# Bdir      : $workflow.launchDir"
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
-    println "# Reading samples for $params.runID from $params.sampletbl"
-   
-    init_refs()
-    init_run() 
+    println "# Reading samples for $params.runID from $params.samp"
+    
+    set_dep_params()
+
+    println " ### $workflow.launchDir ## $params.basedir ## $params.tmp_dir ## $params.html_dir"
+    //set_dep_params() // | collect | init_run()
+    //Channel.of(set_dep_params.out).view()
+    // def d = set_dep_params.out.collect()
+ /*   init_run("ll") 
     
     // 1 // Clean reads // //
     
@@ -414,7 +465,7 @@ workflow {
         dbtobowtie=init_refs.out.FULLDB
         generate_index_bowtie(dbtobowtie)
         reads_align_wf(generate_index_bowtie.out, reads_filter_nonviral.out)
-/*    // 3 // Map reads on reference genomes fasta // //  (used to design the probes) 
+*//*    // 3 // Map reads on reference genomes fasta // //  (used to design the probes) 
     
         tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
         generate_index_bowtie(tobowtie)
