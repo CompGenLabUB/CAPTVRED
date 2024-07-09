@@ -17,8 +17,47 @@ A template for this tabular file is provided (). It must be completed entering o
  ##### C) Sequenced fastq files:</u><br />
  All sequenced fastq files must be placed (or linked) in the same directory, the IDs must correspond to the ones in the first column of the sample description files.
  
-### Install Nextflow software:<br />
-If Nextflow software is not installed, follow the installation instructions provided in the official documentation (https://www.nextflow.io/docs/latest/getstarted.html).
+### Install Conda environment:<br />
+If mamba (or Conda) software is not installed, follow the installation instructions provided in the official documentation [MISSING LINK]().
+A ```environment.yaml``` file is provided to create the conda environment.
+
+```
+mamba env create -f environment.yaml
+mamba activate captvred
+```
+<details>
+ <summary>Conda environment details</summary>
+ Main programs installed in conda enviroment are described here:
+ 
+| Program                      | Version       | Channel           |
+|------------------------------|---------------|-------------------|
+| perl                         | latest        | defaults          |
+| python                       | 3.9.2         | defaults          |
+| biopython                    | latest        | conda-forge       |
+| bbmap                        | latest        | bioconda          |
+| fastqc                       | latest        | bioconda          |
+| multiqc                      | latest        | bioconda          |
+| bowtie2                      | latest        | bioconda          |
+| samtools                     | latest        | bioconda          |
+| seqkit                       | latest        | bioconda          |
+| megahit                      | latest        | bioconda          |
+| spades                       | latest        | bioconda          |
+| blast                        | latest        | bioconda          |
+| gawk                         | latest        | conda-forge       |
+| kaiju                        | 1.9.0         | bioconda          |
+| r-base                       | 4.0.5         | r                 |
+| r-ggplot2                    | latest        | r                 |
+| r-tidyverse                  | latest        | r                 |
+| r-plyr                       | latest        | r                 |
+| r-gridExtra                  | latest        | r                 |
+| bioconductor-rtracklayer     | latest        | bioconda          |
+| bioconductor-GenomicFeatures | latest        | bioconda          |
+| bioconductor-Rsamtools       | latest        | bioconda          |
+| bioconductor-GenomicAlignments | latest      | bioconda          |
+| bioconductor-VariantAnnotation | latest      | bioconda          |
+| bioconductor-ggbio           | latest        | bioconda          |
+
+ </details>
 
 ### Create a project directory (*Root directory*). <br />
 The pipeline and all  related files will be placed in this location.<br />
@@ -53,7 +92,7 @@ nextflow conf/main.nf              \
   <br />
  
   This module prepares the file setup and databases to run the pipeline afterward. In the case of databases, the main steps are:  <br />
-1. __Database download__: Viral reference database [link]() most recent version is downloaded. If the database is already downloaded in the desired location it will not be downloaded again. This step can be forced again by using the flag:  ```--rvdb_update```. <br />
+1. __Database download__: Viral reference database [link]() most recent version is downloaded. If the database is already downloaded in the desired location it will not be downloaded again. This step can be forced by using the flag:  ```--rvdb_update```. <br />
 2.  __Merge database with Viral Candidate sequences__: In this step, sequences from the viral candidates set that are not present in the reference database are included. If the merge has been done previously it will not be repeated. The merge can be forced again by using the flag ```--merge_update```.<br />
 3. __Split datbase__: The full database is split into a subset containing only the sequences classified in the families of interest. Another subset containing the rest of the species is created at the same time. If the subset is already created it will not be created again. It can be forced by using the flag ```--dbsplit_update ```.<br />
 
