@@ -30,7 +30,8 @@ channels:
   - r
   - conda-forge
   - defaults
-dependencies:  
+dependencies: 
+  - nextflow= 22.04
   - perl
   - python=3.9.2
   - biopython
