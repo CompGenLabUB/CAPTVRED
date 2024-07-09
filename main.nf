@@ -1,7 +1,9 @@
 #! /usr/bin/env nextflow
+nextflow.enable.dsl=2
 
 include { bbduk_clean; samps_idtranslate } from './modules/rawfq_clean.nf'
-include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './modules/seq_stats.nf'
+//include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './modules/seq_stats.nf'
+include { fastQC; multiQC } from './modules/seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './modules/reads_align.nf'
 include { megahit_assembly_all; metaspades_assembly} from './modules/reads_assembly.nf'
 include { make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_onrefseqs; do_cov_on_viralcandidates } from './modules/contigs_align.nf'
@@ -10,24 +12,6 @@ include { coverage_plots; align_counts_plot } from './modules/plots.nf'
 include { handle_contamination_pr } from './modules/contamination.nf'
 include { fill_html_report; make_summary_tbl } from './modules/sum_and_report.nf'
 include { create_logd; create_filesys } from './modules/init.nf'
-
-
- //   params.basedir     =  "$workflow.launchDir"
- //   params.bindir      =  "$workflow.projectDir/bin"
- //   params.refseqs     =  "$workflow.projectDir/references"
-//
- //   params.db_dir      =  "$params.refseqs/db"
- //   params.dbset_dir   =  "$params.refseqs/$params.setname"
-//
- //   params.tmp_dir     =  "${workflow.launchDir}/tmp"
- //   params.rawqc_dir   =  "${params.basedir}/raw"
- //   params.clnfq_dir   =  "${params.basedir}/clean"
- //   params.ampaln_dir  =  "${params.basedir}/aln"
- //   params.asbl_dir    =  "${params.basedir}/assembly"
- //   params.taxdir      =  "${params.basedir}/taxonomy"
- //   params.reports_dir =  "${params.basedir}/reports"
- //   params.logs_dir    =  "${params.basedir}/logs"
- //   params.html_dir    =  "${params.basedir}/html"
 
 
 def samplesMap = [:]
@@ -78,23 +62,14 @@ if ( params.help ) {
 workflow init_run() {
 
   take:
-    directories
+    fsys
+    logfl
   main:
     println "# INIT: $samplesMap"
 
-    create_logd(params.logs_dir)
-      def fsys = Channel.of( directories)
- //   def fsys = Channel.of( params.tmp_dir,
- //                          params.rawfq_dir,
- //                          params.clnfq_dir,
- //                          params.ampaln_dir,
- //                          params.asbl_dir,
- //                          params.subasb_dir,
- //                          params.taxdir,
- //                          params.subtax_dir,
- //                          params.reports_dir)
+
     fsys.view() 
-    create_filesys(fsys, create_logd.out)
+    create_filesys(fsys, logfl)
 
    /* if (params.assembler ==~ /(?i)MEGAHIT/){
         params.subasb_dir="$params.asbl_dir/megahit"
@@ -133,32 +108,37 @@ workflow fastqc_onrawseqs() {
     
     println "### $spstr ###"
     spschan=Channel.fromPath("$regx")
-    fastQC(spschan) | collect | multiQC_raw
+    fastQC(spschan, params.rawqc_dir, params.logs_dir) 
+    sampsqual=fastQC.out.collect()
+    multiQC(sampsqual, params.reports_dir, params.logs_dir, "raw")
+    // multiQC_raw(sampsqual, params.reports_dir, params.logs_dir)
 }
 
 
 workflow reads_clean() {
 
   take:
-
     x
+    fastq_dir
+    clnfq_dir
 
   main:
-    
     
     def paths_list=[]
          //paths_list is a LoL: where first item is the raw fastq root 
          //for each sample and the second one is the new root for the cleanseqs.
     def thysamples = samplesMap
     thysamples.each { sampleID, illuminaID ->
-         def newsamp=["$params.fastq_dir/$illuminaID", "$params.clnfq_dir/$sampleID"]
+         def newsamp=["$fastq_dir/$illuminaID", "$clnfq_dir/$sampleID"]
          paths_list << newsamp
     }samps_idtranslate
     
-    
+    Channel.from(paths_list).view()
     if (params.trim_adapters == true ) {
-       bbduk_clean(x, Channel.from(paths_list)) 
-       fastQC( bbduk_clean.out.mix() ) | collect | multiQC_clean
+       bbduk_clean(x, Channel.from(paths_list), params.logs_dir, params.bbdukREF) 
+       cleansps=fastQC( bbduk_clean.out.mix(), params.rawqc_dir, params.logs_dir ).collect()
+       multiQC( cleansps, params.reports_dir, params.logs_dir, "clean")
+       // multiQC_clean( cleansps, params.reports_dir, params.logs_dir)
        out1=bbduk_clean.out.outPE1
        out2=bbduk_clean.out.outPE2
        outS=bbduk_clean.out.outSGL
@@ -181,6 +161,8 @@ workflow idtranslate() {
   take:
 
     x
+    fastq_dir
+    clnfq_dir
 
   main:
     
@@ -190,7 +172,7 @@ workflow idtranslate() {
          //for each sample and the second one is the new root for the cleanseqs.
     def thysamples = samplesMap
     thysamples.each { sampleID, illuminaID ->
-         def newsamp=["$params.rawfq_dir/$illuminaID", "$params.clnfq_dir/$sampleID"]
+         def newsamp=["$rawfq_dir/$illuminaID", "$clnfq_dir/$sampleID"]
          paths_list << newsamp
     }
     
@@ -205,14 +187,19 @@ workflow idtranslate() {
 
 workflow reads_filter_nonviral() {
     take:
-      x
+      samps
+      kdb_dir  // Kaiju database directory (NR_EUK)
+      ncbi_dir // ncbi directory (for names.dmp and nodes.dmp)
+      tax_dir  // taxnonomy directory
      
      main:
-        kaiju_raw(x)
-        // kaiju_raw.out.view()
-        discard_nonviral(kaiju_raw.out)
+        kaiju_raw(samps, kdb_dir, ncbi_dir, tax_dir)
+        kaiju_raw.out.view()
+        discard_nonviral(kaiju_raw.out, params.clnfq_dir)
         // discard_nonviral.out.SGLout.view()
-        fastQC( discard_nonviral.out.mix() ) | collect | multiQC_filt
+        sampsfilt=fastQC( discard_nonviral.out.mix(), params.rawqc_dir, params.logs_dir ).collect()
+        multiQC( sampsfilt, params.reports_dir, params.logs_dir, "filt")
+        
 
     emit:
        discard_nonviral.out.PE1out
@@ -246,25 +233,16 @@ workflow reads_align_wf() {
     
    main:
    
-    bowtie_amplicons_alignment(cluster_index_path, pe1, pe2, sgl)
-    bowtie_amplicons_alignment_sg(cluster_index_path, pe1, pe2, sgl )
-    multiQC_bowtie_amp(bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect())
+    bowtie_amplicons_alignment(cluster_index_path, pe1, pe2, sgl, params.ampaln_dir)
+    bowtie_amplicons_alignment_sg(cluster_index_path, pe1, pe2, sgl, params.ampaln_dir )
+    // samps_align=multiQC_bowtie_amp(bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect())
+    samps_align=bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect()
+    multiQC( samps_align, params.reports_dir, params.logs_dir, "bowtie_amplicons_alignment")
   
   emit:
-    ALL=bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect()
+    ALL=samps_align
     PE=bowtie_amplicons_alignment.out
     SG=bowtie_amplicons_alignment_sg.out
-}
-
-workflow align_summary() {
-    take:
-        BAMLIST
-    
-    main:
-
-     multiQC_bowtie_amp(BAMLIST)
-     align_counts_plot(BAMLIST)
-        
 }
 
 
@@ -399,90 +377,87 @@ workflow coverage_onrefseqs() {
 
 }
 
-workflow set_dep_params () {
-
-    params.basedir     =  workflow.launchDir
-    params.bindir      =  workflow.projectDir+'/bin'
-    params.refseqs     =  workflow.projectDir+'/references'
-
-    params.db_dir      =  params.refseqs + '/db'
-    params.dbset_dir   =  params.refseqs + '/$params.setname'
-
-    if (!params.tmp_dir) { params.tmp_dir     =  "${params.basedir}/tmp" }
-    params.rawqc_dir   =  "${params.basedir}/raw"
-    params.clnfq_dir   =  "${params.basedir}/clean"
-    params.ampaln_dir  =  "${params.basedir}/aln"
-    params.asbl_dir    =  "${params.basedir}/assembly"
-    params.taxdir      =  "${params.basedir}/taxonomy"
-    params.reports_dir =  "${params.basedir}/reports'"    
-    params.logs_dir    =  "${params.bdir}/logs"
-    params.html_dir    =  "${params.basedir}/html"
-  
-  emit:
-    [params.tmp_dir, params.rawfq_dir, params.clnfq_dir, params.ampaln_dir]
- //   params.asbl_dir
- //   params.subasb_dir
- //   params.taxdir
- //   params.subtax_dir
- //   params.reports_dir
-
-}
-
 // // // // // // MAIN // // // // // //  
 
-workflow {
+params.basedir     =  workflow.launchDir
+params.ctvdir      =  workflow.projectDir
+params.refseqs     =  "${params.ctvdir}/references"
+params.bindir      =  "${params.ctvdir}/bin"
+params.db_dir      =  "${params.refseqs}/db"
+params.kaijuDBD    =  "${params.db_dir}/kaiju"
+params.ncbiD       =  "${params.db_dir}/ncbi"
+params.dbset_dir   =  "${params.refseqs}/${params.setname}"
+params.bbdukREF    =  "${params.refseqs}/bbmap/resources/adapters.fa"
 
-    
+params.tmp_dir     =  "${params.basedir}/tmp"      
+params.rawqc_dir    =  "${params.basedir}/raw"     
+params.clnfq_dir    =  "${params.basedir}/clean"   
+params.ampaln_dir   =  "${params.basedir}/aln"     
+params.asbl_dir     =  "${params.basedir}/assembly"
+params.taxdir       =  "${params.basedir}/taxonomy"
+params.reports_dir  =  "${params.basedir}/reports" 
+params.logs_dir     =  "${params.basedir}/logs"    
+params.html_dir     =  "${params.basedir}/html"    
+
+
+
+workflow () {
+
     //check_params()
     println "# Running   : $workflow.scriptId - $workflow.scriptName"
     println "# Project   : $workflow.projectDir"
     println "# Bdir      : $workflow.launchDir"
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.samp"
-    
-    set_dep_params()
 
-    println " ### $workflow.launchDir ## $params.basedir ## $params.tmp_dir ## $params.html_dir"
+    def refseqs      = "${workflow.projectDir}/references"
+    def refseqs_rvdb = "$refseqs/db/rvdb_nt" 
+    def refseqs_ncbi = "$refseqs/db/ncbi"
+
+    def bindir       = "${workflow.projectDir}/bin"
+    println " ### $workflow.launchDir ## $params.bindir ## $params.refseqs ## $params.tmp_dir ## $params.html_dir"
     //set_dep_params() // | collect | init_run()
     //Channel.of(set_dep_params.out).view()
     // def d = set_dep_params.out.collect()
- /*   init_run("ll") 
+    def filesystem = Channel.of( params.tmp_dir,
+                               params.rawfq_dir,
+                               params.clnfq_dir,
+                               params.ampaln_dir,
+                               params.asbl_dir,
+                               params.subasb_dir,
+                               params.taxdir,
+                               params.subtax_dir,
+                               params.reports_dir)
+    create_logd(params.logs_dir)
+    init_run(filesystem, create_logd.out) 
     
     // 1 // Clean reads // //
     
         fastqc_onrawseqs(init_run.out)
-        reads_clean(init_run.out)
+        reads_clean(init_run.out, params.fastq_dir, params.clnfq_dir )
     
     // 2 // Discard reads identified as nonviral // //
     
-        //KDB=Channel.from(params.kaijudbs)
-        KDB=Channel.from(params.filtDB)
+        KDB=Channel.from(params.kaijuDBRAW)
         CLNR=reads_clean.out.merge()
         to_kaiju=KDB.combine(CLNR).merge()
-        reads_filter_nonviral(to_kaiju)
+        to_kaiju.view()
+        reads_filter_nonviral(to_kaiju, params.kaijuDBD, params.ncbiD, params.taxdir)
+ 
 
-    // 3 // Map reads on database   //  //
-        dbtobowtie=init_refs.out.FULLDB
+    // 3 // Map reads on database   // //
+        dbtobowtie="$refseqs_rvdb/$params.fams_subset"
         generate_index_bowtie(dbtobowtie)
         reads_align_wf(generate_index_bowtie.out, reads_filter_nonviral.out)
-*//*    // 3 // Map reads on reference genomes fasta // //  (used to design the probes) 
-    
-        tobowtie="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}";
-        generate_index_bowtie(tobowtie)
-        amplicon_sequences_align(generate_index_bowtie.out, reads_filter_nonviral.out)
-    //    align_summary(amplicon_sequences_align.out.ALL)
-    
+
     // 4 // Assembly reads into contigs // //
     
         if (params.assembler ==~ /(?i)MEGAHIT/){
              megahit_assembly_all(reads_filter_nonviral.out)
              CNFA=megahit_assembly_all.out.CGSout
-
-             
         }else if (params.assembler ==~ /(?i)METASPADES/ ){
              metaspades_assembly(reads_filter_nonviral.out)
              CNFA=metaspades_assembly.out.CGSout
-
         }
     
     // 5 // Taxonomic classification of contigs // //
@@ -491,14 +466,9 @@ workflow {
             // 5.1. FAST APPROACH// 
               // 5.1.1. Protein-level classification (KAIJU) //
             KCDB=Channel.from(params.kaijudb)
-            // KCDB.view()
             to_kaiju_contigs=KCDB.combine(CNFA.merge()).merge()
             kaiju_contigs(to_kaiju_contigs)
             kaiju_summarize(kaiju_contigs.out.NM)
-        //    kaiout=kaiju_contigs.out.filter{it.contains(params.blastfastdb)}.flatten()
-        //    kaiout.view()
-        //    all_contigs_blast(kaiout)
-                     
                        
             blOUT=""                   
             covOUT=""
@@ -512,7 +482,7 @@ workflow {
           
         } else if (params.taxalg ==~ /(?)BLASTN/ ){
             //Directly blast into database //
-            ref_fa="${params.blast_refseqs_dir}/${params.blast_ref_db_name}";
+            ref_fa="${params.blast_refseqs_dir}/${params.fams_subset}";
             // blast_flow( ref_fa, CNFA.merge())
 
             // direct_blast(ref_fa, CNFA.merge())
@@ -541,9 +511,7 @@ workflow {
 
             // Directly blast into database //
             ref_fa="${params.blast_refseqs_dir}/${params.blast_ref_db_name}";
-            // blast_flow( ref_fa, CNFA.merge())
 
-            // direct_blast(ref_fa, CNFA.merge())
             direct_blast_tx(ref_fa, CNFA)
             
             if ( params.general_only == false) {
@@ -593,7 +561,7 @@ workflow {
             // taxon_outkaiju  (*.rvdb.names.out file)
             // blast_unc_x_cl.RPT
             // blast_unc_x_cl.out.RPT
-*/         
+    
 }
 
 workflow.onComplete {

@@ -1,0 +1,60 @@
+#
+## ######################################################################################
+##
+##   environment.yml
+##
+##   Defining conda/mamba software dependencies to run CAPTVRED pipeline for capture-based viral metagneomics.
+##
+## ######################################################################################
+##
+##    CopyLeft 2024 (CC:BY-NC-SA) --- Maria Tarrdas-Alemany & Josep F Abril
+##
+##   This file should be considered under the Creative Commons BY-NC-SA License
+##   (Attribution-Noncommercial-ShareAlike). The material is provided and distributed 
+##   in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the 
+##   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+##
+## ######################################################################################
+#
+# To install software ensure you have conda installed and use the following command:
+#
+#    conda env create --file environment.yml
+# 
+# then run the command below to activate the conda environment:
+#
+#    conda activate captvred
+#
+name: captvred
+channels:
+  - bioconda
+  - r
+  - conda-forge
+  - defaults
+dependencies:  
+  - perl
+  - python=3.9.2
+  - biopython
+  - bbmap
+  - fastqc
+  - multiqc
+  - bowtie2
+  - samtools
+  - seqkit
+  - megahit
+  - spades
+  - blast
+  - gawk
+  - kaiju=1.9.0
+  # R-packages
+  - r-base=4.0.5
+  - r-ggplot2
+  - r-tidyverse
+  - r-plyr
+  - r-gridExtra
+  - bioconductor-rtracklayer
+  - bioconductor-GenomicFeatures
+  - bioconductor-Rsamtools
+  - bioconductor-GenomicAlignments
+  - bioconductor-VariantAnnotation
+  - bioconductor-ggbio
+

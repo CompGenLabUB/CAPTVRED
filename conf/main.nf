@@ -1,6 +1,6 @@
 #! /usr/bin/env nextflow
 
-include { db_for_kaiju;   create_logf; stdrd_link; stdrd_link as stdrd_link_otfm } from './modules/init_conf.nf'
+include { db_for_kaiju;   create_logf; stdrd_link; stdrd_link as stdrd_link_otfm, stdrd_link as stdrd_link_set } from './modules/init_conf.nf'
 include { merge_rvdb_setref; chek_setref_ids; filter_FOI } from './modules/filter_rvdb.nf'
 include { get_taxonids; get_taxonids_rvdb} from './modules/db_taxonomy.nf'
 include { taxonomizator; taxonomizator as taxonomizator_rvdb} from './modules/db_taxonomy.nf'
@@ -136,6 +136,7 @@ workflow linkfiles() {
       nonfamilies_subset_database=Channel.fromPath(outother.toString(), checkIfExists: true)
       stdrd_link(families_subset_database, "$refseqs_rvdb/foi_subset_db.fasta.gz", log_file)
       stdrd_link_otfm(nonfamilies_subset_database, "$refseqs_rvdb/other_subset_db.fasta.gz", log_file) 
+      stdrd_link_set(params.set_seqs, "$refseqs_rvdb/setseqs.fasta.gz", log_file) 
 
       /*
       if (new File(outfoi).exists()) {
@@ -173,17 +174,17 @@ workflow prepareblast (){
 
 
 workflow {
-    def refseqs="${workflow.projectDir}/references"
-    def refseqs_rvdb="$refseqs/${params.rvdb_dir}"
-    def refseqs_ncbi="$refseqs/db/ncbi"
+    def refseqs      = "${workflow.projectDir}/references"
+    def refseqs_rvdb = "$refseqs/${params.rvdb_dir}"
+    def refseqs_ncbi = "$refseqs/db/ncbi"
 
-    def bindir="${workflow.projectDir}/bin"
+    def bindir       = "${workflow.projectDir}/bin"
 
-    def rvdb_fa="${refseqs_rvdb}/${params.db_name}"
-    def merged_fa="${refseqs_rvdb}/rvdb+${params.setname}.fasta.gz"
-    def rvdb_tax="${refseqs_rvdb}/rvdb+${params.setname}.tax"
-    def foisubset="${refseqs_rvdb}/rvdb+${params.setname}_foi_subset.fasta.gz"
-    def othersubset="${refseqs_rvdb}/rvdb+${params.setname}_other_subset.fasta.gz"
+    def rvdb_fa      = "${refseqs_rvdb}/${params.db_name}"
+    def merged_fa    = "${refseqs_rvdb}/rvdb+${params.setname}.fasta.gz"
+    def rvdb_tax     = "${refseqs_rvdb}/rvdb+${params.setname}.tax"
+    def foisubset    = "${refseqs_rvdb}/rvdb+${params.setname}_foi_subset.fasta.gz"
+    def othersubset  = "${refseqs_rvdb}/rvdb+${params.setname}_other_subset.fasta.gz"
     
      // create_logf("$workflow.projectDir/references")
         create_logf(refseqs)
@@ -210,6 +211,7 @@ workflow {
    
       // linkfiles(database_subset.out.DS_FOI, database_subset.out.DS_OTHER, refseqs_rvdb, log_file)
 
+/* el q ve a continuació es pot eleiminar si surt be el link 
         //stdrd_link(outfoi, "$refseqs_rvdb/foi_subset_db.fasta.gz", create_logf.out )
         //stdrd_link_otfm(outother, "$refseqs_rvdb/otfm_subset_db.fasta.gz", create_logf.out )
   //    families_subset_database=Channel.fromPath(database_subset.out.DS_FOI.toString(), checkIfExists: true)
@@ -217,6 +219,7 @@ workflow {
   //    stdrd_link(families_subset_database, "$refseqs_rvdb/foi_subset_db.fasta.gz", log_file)
   //    stdrd_link_otfm(nonfamilies_subset_database, "$refseqs_rvdb/other_subset_db.fasta.gz", log_file  ) 
 
+*/
 
      // Dbs non-viral discard:
         // db_for_kaiju(params.filtDB, create_logf.out)

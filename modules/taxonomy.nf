@@ -212,6 +212,9 @@ process kaiju_raw {
     input:
         tuple  val(db_id), val(pe1),  val(pe2), val(sgle)
         // dbs: only name.  //reads: whole path
+        val(kdb_dir)
+        val(ncbi_dir)
+        val(tax_dir)
 
                 
     output:
@@ -220,7 +223,7 @@ process kaiju_raw {
     script:
     
     samp_id=sgle.split('/')[-1].replaceAll("_sgl.fastq.gz", "")
-    odir="${params.taxdir}/reads_taxon/${samp_id}"
+    odir="${tax_dir}/reads_taxon/${samp_id}"
     allout="${odir}/${samp_id}_all.kaiju.${db_id}.out"
     allnames="${odir}/${samp_id}_all.kaiju.${db_id}.names.out"
         
@@ -229,14 +232,14 @@ process kaiju_raw {
             [ -e ${odir} ] ||  mkdir -vp ${odir};
             #PE
             kaiju -v -z ${task.cpus}           -E 0.001           \
-                 -t  ${params.kaijuDBD}/nodes.dmp        \
-                 -f  ${params.kaijuDBD}/kaiju_db_${db_id}.fmi     \
+                 -t  ${ncbi_dir}/nodes.dmp        \
+                 -f  ${kdb_dir}/kaiju_db_${db_id}.fmi     \
                  -i ${pe1}     -j ${pe2}                          \
                  -o  ${odir}/${samp_id}_pe.kaiju.${db_id}.out    \
                  2> ${odir}/${samp_id}_pe.kaiju.${db_id}.out.log 1>&2;
 
-            kaiju-addTaxonNames -t ${params.kaijuDBD}/nodes.dmp   \
-                -n ${params.kaijuDBD}/names.dmp                   \
+            kaiju-addTaxonNames -t ${ncbi_dir}/nodes.dmp   \
+                -n ${ncbi_dir}/names.dmp                   \
                 -r superkingdom,genus,species                              \
                 -i ${odir}/${samp_id}_pe.kaiju.${db_id}.out                \
                 -o ${odir}/${samp_id}_pe.kaiju.${db_id}.names.out    \
@@ -244,14 +247,14 @@ process kaiju_raw {
             
             #SG
             kaiju -v -z ${task.cpus}             -E 0.001           \
-                  -t  ${params.kaijuDBD}/nodes.dmp         \
-                  -f ${params.kaijuDBD}/kaiju_db_${db_id}.fmi       \
+                  -t  ${ncbi_dir}/nodes.dmp         \
+                  -f ${kdb_dir}/kaiju_db_${db_id}.fmi       \
                   -i  ${sgle}                                       \
                   -o ${odir}/${samp_id}_sg.kaiju.${db_id}.out       \
                   2> ${odir}/${samp_id}_sg.kaiju.${db_id}.out.log 1>&2;
                   
-          kaiju-addTaxonNames -t ${params.kaijuDBD}/nodes.dmp   \
-                -n ${params.kaijuDBD}/${db_id}/names.dmp                 \
+          kaiju-addTaxonNames -t ${ncbi_dir}/nodes.dmp   \
+                -n ${ncbi_dir}/names.dmp                 \
                 -r superkingdom,phylum,class,order,family,genus,species  \
                 -i ${odir}/${samp_id}_sg.kaiju.${db_id}.out              \
                 -o ${odir}/${samp_id}_sg.kaiju.${db_id}.names.out        \
@@ -259,8 +262,8 @@ process kaiju_raw {
                   
         #ALL
       #     #summary table
-      #       kaiju2table -t ${params.kaijuDBD}/nodes.dmp         \
-      #              -n ${params.kaijuDBD}/names.dmp              \
+      #       kaiju2table -t ${ncbi_dir}/nodes.dmp         \
+      #              -n ${ncbi_dir}/names.dmp              \
       #              -r species   \
       #              -o ${odir}/${samp_id}_all.kaiju.${db_id}.summary.tsv  \
       #              ${odir}/${samp_id}_pe.kaiju.${db_id}.out              \
@@ -277,8 +280,8 @@ process kaiju_raw {
 
 
             kaiju2krona -u -v                                          \
-                    -t ${params.kaijuDBD}/nodes.dmp           \
-                    -n ${params.kaijuDBD}/names.dmp           \
+                    -t ${ncbi_dir}/nodes.dmp           \
+                    -n ${ncbi_dir}/names.dmp           \
                     -i ${odir}/${samp_id}_all.kaiju.${db_id}.out       \
                     -o ${odir}/${samp_id}_all.kaiju.${db_id}.out.krona \
                     2> ${odir}/${samp_id}_all.kaiju.${db_id}.out.krona.log 1>&2;
@@ -295,11 +298,12 @@ process kaiju_raw {
 process discard_nonviral {
     input:
      val txn_names_tbl
+     val clean_dir
     
     output:
-     val "${params.clnfq_dir}/${samp_id}_pe1.filtered.fastq.gz", emit: PE1out
-     val "${params.clnfq_dir}/${samp_id}_pe2.filtered.fastq.gz", emit: PE2out
-     val "${params.clnfq_dir}/${samp_id}_sgl.filtered.fastq.gz", emit: SGLout
+     val "${clean_dir}/${samp_id}_pe1.filtered.fastq.gz", emit: PE1out
+     val "${clean_dir}/${samp_id}_pe2.filtered.fastq.gz", emit: PE2out
+     val "${clean_dir}/${samp_id}_sgl.filtered.fastq.gz", emit: SGLout
      
     script:
 
@@ -313,18 +317,18 @@ process discard_nonviral {
           ${txn_names_tbl}   >>  ${nvids} 2> ${nvids}.log;
 
         seqkit grep --invert-match --pattern-file  ${nvids}        \
-                    ${params.clnfq_dir}/${samp_id}_pe1.fastq.gz    |\
-                    gzip -   > ${params.clnfq_dir}/${samp_id}_pe1.filtered.fastq.gz \
-                    2> ${params.clnfq_dir}/${samp_id}_pe1.filtered.log;
+                    ${clean_dir}/${samp_id}_pe1.fastq.gz    |\
+                    gzip -   > ${clean_dir}/${samp_id}_pe1.filtered.fastq.gz \
+                    2> ${clean_dir}/${samp_id}_pe1.filtered.log;
                     
         seqkit grep --invert-match --pattern-file ${nvids}         \
-                    ${params.clnfq_dir}/${samp_id}_pe2.fastq.gz    |\
-                    gzip -   > ${params.clnfq_dir}/${samp_id}_pe2.filtered.fastq.gz \
-                    2> ${params.clnfq_dir}/${samp_id}_pe2.filtered.log;
+                    ${clean_dir}/${samp_id}_pe2.fastq.gz    |\
+                    gzip -   > ${clean_dir}/${samp_id}_pe2.filtered.fastq.gz \
+                    2> ${clean_dir}/${samp_id}_pe2.filtered.log;
                     
         seqkit grep --invert-match --pattern-file  ${nvids}       \
-                    ${params.clnfq_dir}/${samp_id}_sgl.fastq.gz   |\
-                    gzip -   > ${params.clnfq_dir}/${samp_id}_sgl.filtered.fastq.gz \
-                    2> ${params.clnfq_dir}/${samp_id}_sgl.filtered.log;
+                    ${clean_dir}/${samp_id}_sgl.fastq.gz   |\
+                    gzip -   > ${clean_dir}/${samp_id}_sgl.filtered.fastq.gz \
+                    2> ${clean_dir}/${samp_id}_sgl.filtered.log;
         """
 }

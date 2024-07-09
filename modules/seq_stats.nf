@@ -2,61 +2,95 @@
 
 process fastQC {
     input:
-     val x
+     val samps
+     val rawfdir
+     val logsdir
      
     output:
       val "$odir", emit: QCout
       
     script:
-        // println "## FASTQC on sample: $x"
-        ofl=x.toString().split("/")[-1].replaceAll(".gz", ".QC")
-        odir="$params.rawqc_dir/$ofl"
-        logfl=x.toString().split("/")[-1].replaceAll(".gz", ".log")
-        logfl="$params.logs_dir/fastQC_$logfl"
+        // println "## FASTQC on sample: $samps"
+        ofl=samps.toString().split("/")[-1].replaceAll(".gz", ".QC")
+        odir="$rawfdir/$ofl"
+        logfl=samps.toString().split("/")[-1].replaceAll(".gz", ".log")
+        logfl="$logsdir/fastQC_$logfl"
 
     """
     mkdir -vp $odir
-    fastqc $x -o $odir 2> $logfl
+    fastqc $samps -o $odir 2> $logfl
     """
 
 }
 
-process multiQC_raw {
+
+
+process multiQC {
     input:
-     val x
+     val samps
+     val reportsdir
+     val logdir
+     val type
+     
     script:
    
       //input is a list, transdorm it into a string so miliqc can use it as argument
-    sampdirs=x.join("  ")
+    sampdirs=samps.join("  ")
+     
+    """
+    multiqc $sampdirs \
+        --title "$params.runID MultiQC in ${type} reads"    \
+        --fullnames                                         \
+        --force                                             \
+        --filename ${params.runID}_multiqc_${type}.html     \
+        --outdir ${reportsdir}                              \
+         2> ${logdir}/${params.runID}_multiqc_${type}.log;
+         
+    """
+}
+
+
+process multiQC_raw {
+    input:
+     val samps
+     val reportsdir
+     val logdir
+    script:
+   
+      //input is a list, transdorm it into a string so miliqc can use it as argument
+    sampdirs=samps.join("  ")
      
     """
     multiqc $sampdirs \
         --title "$params.runID MultiQC in raw reads"    \
         --fullnames                                     \
         --force                                         \
-        --filename ${params.runID}_multiqc_raw.html   \
-        --outdir ${params.reports_dir}   \
-         2> ${params.logs_dir}/${params.runID}_multiqc_raw.log;
+        --filename ${params.runID}_multiqc_raw.html     \
+        --outdir ${reportsdir}                          \
+         2> ${logdir}/${params.runID}_multiqc_raw.log;
          
     """
 }
 
 process multiQC_clean {
     input:
-     val x
+     val samps
+     val repdir
+     val logdir
+
     script:
    
       //input is a list, transdorm it into a string so miliqc can use it as argument
-    sampdirs=x.join("  ")
+    sampdirs=samps.join("  ")
      
     """
     multiqc $sampdirs \
-        --title "$params.runID MultiQC in clean reads"    \
+        --title "$params.runID MultiQC in clean reads"  \
         --fullnames                                     \
         --force                                         \
         --filename ${params.runID}_multiqc_clean.html   \
-        --outdir ${params.reports_dir}  \
-         2> ${params.logs_dir}/${params.runID}_multiqc_clean.log;
+        --outdir ${repdir}                              \
+         2> ${logdir}/${params.runID}_multiqc_clean.log;
     
     """
 }
@@ -75,8 +109,8 @@ process multiQC_filt {
         --title "$params.runID MultiQC in filtered reads (kaiju non-viral removed)"    \
         --fullnames                                     \
         --force                                         \
-        --filename ${params.runID}_multiqc_filt.html   \
-        --outdir ${params.reports_dir}   \
+        --filename ${params.runID}_multiqc_filt.html    \
+        --outdir ${params.reports_dir}                  \
          2> ${params.logs_dir}/${params.runID}_multiqc_filt.log;
 
     """

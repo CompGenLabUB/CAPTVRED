@@ -12,15 +12,16 @@ process generate_index_bowtie {
 
     script:
 
-        idx_path=fastafl.toString().replaceAll(".fa.gz", "_index")
-        idx_files=file("${params.dbset_dir}.*.bt2")
+        idx_path=fastafl.toString().replaceAll(".fa.gz|.fasta.gz", "_index")
+        thedir=fastafl.toString().split('/')[0..-2].join('/')
+        idx_files=file("${thedir}.*.bt2")
 
        
         //bowtie2-buid generates AT LEAST 6 files, if less than 6 are found, db might be corrupted
         if( idx_files.size() >= 6 )
         
             """
-            cat ${params.dbset_dir}/bowtie_genome_indexed.cdate 1>&2;
+            cat ${thedir}/bowtie_genome_indexed.cdate 1>&2;
             """
             
         else
@@ -30,7 +31,7 @@ process generate_index_bowtie {
                           $fastafl     ${idx_path}              \
                           2> ${idx_path}.bowtiedb.log;
              date +"DB created on %Y/%m/%d %T %Z %s"      \
-                  > ${params.dbset_dir}/bowtie_genome_indexed.cdate;
+                  > ${thedir}/bowtie_genome_indexed.cdate;
             """
 }
 
@@ -42,6 +43,7 @@ process bowtie_amplicons_alignment {
       val(pe1)
       val(pe2)
       val(sgle)
+      val(odir)
     
     output:
     bowtie_amplicons_alignment
@@ -51,7 +53,7 @@ process bowtie_amplicons_alignment {
 
                       
         //idir=params.clnfq_dir
-        odir=params.ampaln_dir
+        // odir=params.ampaln_dir
 
         pe_root=pe1.split('/')[-1].toString().replaceAll("_pe1.filtered.fastq.gz", "_pe")
 
@@ -87,6 +89,7 @@ process bowtie_amplicons_alignment_sg {
       val(pe1)
       val(pe2)
       val(sgle)
+      val(odir)
     
     output:
 
@@ -95,7 +98,7 @@ process bowtie_amplicons_alignment_sg {
     script:
 
         //idir=params.clnfq_dir
-        odir=params.ampaln_dir
+        //odir=params.ampaln_dir
         
         sgle_file=file("${sgle}")
         sgle_root=sgle.split('/')[-1].toString().replaceAll("_sgl.filtered.fastq.gz", "_sg")
