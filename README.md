@@ -59,13 +59,13 @@ mamba activate captvred
 
  </details>
 
-### Create a project directory (*Root directory*). <br />
+### Create a project directory <br />
 The pipeline and all  related files will be placed in this location.<br />
 ```{.sh}
 mkdir MYPROJECT
 cd MYPROJECT
 ```
-### Get the pipeline.<br />
+### Get the pipeline<br />
 Pipeline can be downloaded via github clone repository:
 
    ```{.sh}
@@ -101,7 +101,7 @@ If the run is interrupted for any reason, remember that the ```-resume``` nextfl
 
 </details>
 
-# Run CAPTVRED from the command line:
+# Run CAPTVRED:
 
 ```{.sh}
 nextflow $NXFDIR/main.nf
@@ -123,8 +123,8 @@ nextflow $NXFDIR/main.nf
 ```
 All allowed commands can be found in:  _Nextflow documentation (https://www.nextflow.io/docs/latest/index.html) > Command line inteface(CLI) > Commands > run_
 
+# Output:
 
-
-## Data:
+# Data:
 * The data for the test set is provided in the following [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz). The folder contains 15 test samples (3 real metagenomics samples and 12 synthetic samples), and the script used for data generation.
 * The data used for the assessment of the PANDEVIR capture panel are available in the following  [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.tar.gz). The folder contains the raw reads for all the samples and a tabular file with the samples name relation.
