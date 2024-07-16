@@ -9,24 +9,35 @@ process get_taxonids () {
         val odir
         val fasta_fl
         val name
+        val accession2taxid
 
     output:
         val txid_fl
 
     script:
         idsfl="${odir}/${name}_genomes.ids"
-        gbfl="${odir}/${name}_genomes.gb"
+        gbfl="${odir}/${name}_missingtax_genomes.gb"
+        missids="${odir}/${name}_missingtax.txt"
         txid_fl="${odir}/${name}_genebank_to_taxon.gb"
 
         """
         zegrep '^>' $fasta_fl | awk '{print \$1}' - | sed 's/>//' > $idsfl; 
-        efetch -db nuccore -input $idsfl -format gb > $gbfl;
+        zcat $accession2taxid   | \ 
+            gawk 'BEGIN{
+                while(getline<ARGV[1]>0) idslist[\$1]; ARGV[1]=""
+            } (\$2 in idslist) { 
+                 print \$2, \$3 > "$txid_fl"; delete idslist[\$2] 
+            } END{ 
+                 for(i in idslist) {print i > "$missids" }
+            }' $idsfl - ;
+
+        efetch -db nuccore -input $missids -format gb > $gbfl;
         gawk -vOFS="\\t" '
             \$1 ~ /^VERSION\$/ { 
                 ID=\$2 
             } match(\$0, /^ *\\/db_xref="taxon:(.*)" *\$/, a) { 
                 print ID, a[1] 
-            }' $gbfl > $txid_fl;
+            }' $gbfl >> $txid_fl;
         """
 }
 
@@ -35,24 +46,34 @@ process get_taxonids_rvdb () {
         val odir
         val fasta_fl
         val name      // full path
+        val accession2taxid
 
     output:
         val txid_fl
 
     script:
         idsfl=name.replaceAll(".fasta.gz","_genomes.ids")
-        gbfl=name.replaceAll(".fasta.gz","_genomes.gb")
+        gbfl=name.replaceAll(".fasta.gz","_missingtax_genomes.gb")
+        missids=name.replaceAll(".fasta.gz", "_missingtax.txt")
         txid_fl=name.replaceAll(".fasta.gz","_genebank_to_taxon.gb")
 
         """
         zegrep '^>' $fasta_fl | awk -vFS="|" '{print \$3}' -  > $idsfl; 
-        efetch -db nuccore -input $idsfl -format gb > $gbfl;
+        zcat $accession2taxid   |  gawk 'BEGIN{
+                                        while(getline<ARGV[1]>0) idslist[\$1]; ARGV[1]=""
+                                    } (\$2 in idslist) { 
+                                        print \$2, \$3 > "$txid_fl"; delete idslist[\$2] 
+                                    } END{ 
+                                        for(i in idslist) {print i > "$missids" }
+                                    }' $idsfl - ;
+
+        efetch -db nuccore -input $missids -format gb > $gbfl;
         gawk -vOFS="\\t" '
             \$1 ~ /^VERSION\$/ { 
                 ID=\$2 
             } match(\$0, /^ *\\/db_xref="taxon:(.*)" *\$/, a) { 
                 print ID, a[1] 
-            }' $gbfl > $txid_fl;
+            }' $gbfl >> $txid_fl;
         """
 }
 

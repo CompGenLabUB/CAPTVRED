@@ -62,3 +62,34 @@ process get_names_and_nodes () {
         """
 
 }
+
+
+process get_accession2taxid () {
+    
+    input:
+        val odir
+        val link
+        val logfl
+    
+    output:
+        val fullpath
+
+    script:
+        flname=link.toString().split("/")[-1]
+        fullpath="${odir}/${flname}"
+
+        """
+        mkdir -vp "${odir}";
+        echo "   > Downloading $flname database" >> $logfl;
+        if $params.taxon_update; then 
+            wget $link -O  $fullpath  2>> $logfl;
+        else 
+            if [ -f $fullpath ]; then
+                echo "    ... \"$flname\" is already downloaded." >> $logfl;
+            else 
+                wget $link -O $fullpath  2>> $logfl;
+            fi;
+        fi;
+        """
+
+}

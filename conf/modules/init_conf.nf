@@ -1,4 +1,4 @@
-process create_logf {
+process create_logf () {
 input:
     val refseqsdir
 output:
@@ -16,7 +16,7 @@ script:
     """
 }
 
-process db_for_kaiju (){
+process db_for_kaiju () {
 
     input:
         val dbname
@@ -48,7 +48,11 @@ process stdrd_link () {   // Create a link with stable name so it can be called 
     
     script:
       """
-        ln -fs $origin_file  $dest_link >> $logfl;
-        echo "    ... link done!";
+         if [ -f $origin_file ]; then
+            ln -fs $origin_file  $dest_link >> $logfl 2>&1
+            echo "    ... link done!" >> $logfl;
+         else
+            echo "## ERROR!! $origin_file does not exist!!";
+         fi;
       """
 }

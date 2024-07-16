@@ -42,7 +42,7 @@ log.info """\
  """
 
 if ( params.help ) {
-    help = """your_script.nf: A description of your script and maybe some examples of how
+    help = """main.nf: A description of your script and maybe some examples of how
              |                to run the script
              |Required arguments:
              |  --input_file  Location of the input file file.
@@ -172,7 +172,7 @@ workflow idtranslate() {
          //for each sample and the second one is the new root for the cleanseqs.
     def thysamples = samplesMap
     thysamples.each { sampleID, illuminaID ->
-         def newsamp=["$rawfq_dir/$illuminaID", "$clnfq_dir/$sampleID"]
+         def newsamp=["$fastq_dir/$illuminaID", "$clnfq_dir/$sampleID"]
          paths_list << newsamp
     }
     
@@ -295,7 +295,7 @@ workflow direct_blast_n () {
     main:
 
         make_db_for_blast( ref_fasta, "FALSE") 
-        do_blastn(all_contigs, make_db_for_blast.out.DB, params.taxbndir)
+        do_blastn(all_contigs, make_db_for_blast.out.DB, params.subtax_dir)
         
         if (params.handle_contamination == true ) {
             handle_contamination_pr( params.cids, 
@@ -399,6 +399,19 @@ params.reports_dir  =  "${params.basedir}/reports"
 params.logs_dir     =  "${params.basedir}/logs"    
 params.html_dir     =  "${params.basedir}/html"    
 
+if (params.assembler ==~ /(?i)MEGAHIT/){
+        params.subasb_dir="$params.asbl_dir/megahit"
+    }else if (params.assembler ==~ /(?i)METASPADES/ ) {
+        params.subasb_dir="$params.asbl_dir/metaspades"
+    }
+
+    if (params.taxalg ==~ /(?i)KAIJU/ ) {
+      params.subtax_dir="$params.taxdir/kaiju"
+    } else if (params.taxalg ==~ /(?)BLASTN/ ){
+      params.subtax_dir="$params.taxdir/blastn"
+    } else if (params.taxalg ==~ /(?)TBLASTX/ ){ 
+      params.subtax_dir="$params.taxdir/tblastx"
+    }
 
 
 workflow () {
@@ -420,7 +433,7 @@ workflow () {
     //Channel.of(set_dep_params.out).view()
     // def d = set_dep_params.out.collect()
     def filesystem = Channel.of( params.tmp_dir,
-                               params.rawfq_dir,
+                               params.fastq_dir,
                                params.clnfq_dir,
                                params.ampaln_dir,
                                params.asbl_dir,

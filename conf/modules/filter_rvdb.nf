@@ -78,12 +78,12 @@ process filter_FOI () {  //families of interest
         val bin          // Bin directory
 
     output:
-        val ("$foi_subset_fa"),   emit: FOI
-        val ("$other_subset_fa"), emit: OTHER
+        val "$foi_subset_fa",   emit: FOI
+        val "$other_subset_fa", emit: OTHER
 
     script:
-        foi_lst=set_taxfl.replaceAll(".tax.gz", "_families.foi")
-       // subset_ids=db_tax.replaceAll(".tax", "_families.foi")
+        foi_lst=set_taxfl.replaceAll(".tax.gz", "_families.foi") 
+        otherID=set_taxfl.replaceAll(".tax.gz", "_families.TEST")
         foi_subset_fa=db_fa.replaceAll(".fasta.gz", "_foi_subset.fasta.gz")
         other_subset_fa=db_fa.replaceAll(".fasta.gz", "_other_subset.fasta.gz")
         logfile=db_fa.replaceAll(".fasta.gz", "_filter.log")
@@ -93,12 +93,13 @@ process filter_FOI () {  //families of interest
         zegrep -o  "\\sfamily:[A-Za-z]*:[0-9]*"  $set_taxfl |\
                 sort                                        |\
                 uniq > $foi_lst;
+        ## echo otherID
         #Split fasta 
-        $bin/filter_by_family_taxon.py            \
-                --fasta_file     $db_fa           \
-                --fam_list_file  $foi_lst         \
-                --fulltaxon_file $db_tax          \
-                --FOI_seqs       $foi_subset_fa   \
+        $bin/filter_by_family_taxon.py             \
+                --fasta_file     $db_fa            \
+                --fam_list_file  $foi_lst          \
+                --fulltaxon_file $db_tax           \
+                --FOI_seqs       $foi_subset_fa    \
                 --OTHER_seqs     $other_subset_fa # \
             # 2> $logfile;
 
