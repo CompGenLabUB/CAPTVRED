@@ -1,7 +1,6 @@
 <img src="./docs/captvred_logo.png" title="CAPTVRED" alt="CAPTVRED" width="350px" align="center" />
 
-CAPTVRED PIPELINE is designed to analyze viral NGS data. Despite, any metagenomics dataset sequenced with illumina run can be analyzed using this workflow, it has been specifically designed to asses Targeted Enrichment Sequencing (TES) datasets, with a set of probes designed based on a set of reference genomic sequences of interest. This pipeline provides an analysis for the viral identification and discovery through alignment, assembly, and taxonomic classification of the sequenced reads. It is assumed that the probes were designed based on the reference set  to enrich the samples with reads from these species and similar ones.
-**In the following lines we will refer to the set of genomic reference sequences as Viral Candidates**
+CAPTVRED PIPELINE is designed to analyze viral metagenomics datasets from Target Enrichment Sequencing (or Capture-based Metagenomics). This pipeline provides an analysis for viral identification through alignment, assembly, and taxonomic classification of the sequenced reads. The analyses focus on the set of species of interest, for which the dataset has been enriched, and other related sequences from the same taxonomic family. **In the following lines we will refer to the set of genomic sequences of interest as Viral Candidates.**
 
 # Getting started:
 Before running the pipeline, the file system must be prepared as follows:
@@ -17,17 +16,29 @@ A template for this tabular file is provided (). It must be completed entering o
  ##### C) Sequenced fastq files:</u><br />
  All sequenced fastq files must be placed (or linked) in the same directory, the IDs must correspond to the ones in the first column of the sample description files.
  
+### Get the pipeline<br />
+Pipeline can be downloaded via github clone repository:
+
+   ```{.sh}
+   git clone https://github.com/CompGenLabUB/CAPTVRED.git
+   ```
+or via nextflow pull command:
+  ```{.sh}
+  nextflow pull CompGenLabUB/CAPTVRED
+  ```
+
 ### Install Conda environment:<br />
 If mamba (or Conda) software is not installed, follow the installation instructions provided in the official documentation [MISSING LINK]().
 A ```environment.yaml``` file is provided to create the conda environment.
 
 ```
+cd CAPTVRED
 mamba env create -f environment.yaml
 mamba activate captvred
 ```
 <details>
  <summary>Conda environment details</summary>
- Main programs installed in conda enviroment are described here:
+ The main programs installed in conda environment are described here:
  
 | Program                      | Version       | Channel           |
 |------------------------------|---------------|-------------------|
@@ -65,16 +76,7 @@ The pipeline and all  related files will be placed in this location.<br />
 mkdir MYPROJECT
 cd MYPROJECT
 ```
-### Get the pipeline<br />
-Pipeline can be downloaded via github clone repository:
 
-   ```{.sh}
-   git clone https://github.com/CompGenLabUB/CAPTVRED.git
-   ```
-or via nextflow pull command:
-  ```{.sh}
-  nextflow pull CompGenLabUB/CAPTVRED
-  ```
 ### Set Up <br />
 
 ```{.sh}
@@ -91,8 +93,8 @@ nextflow conf/main.nf              \
   <summary><bl>More details about the references setup<bl></summary>
   <br />
  
-  This module prepares the file setup and databases to run the pipeline afterward. In the case of databases, the main steps are:  <br />
-1. __Database download__: Viral reference database [link]() most recent version is downloaded. If the database is already downloaded in the desired location it will not be downloaded again. This step can be forced by using the flag:  ```--rvdb_update```. <br />
+This module prepares the file setup and databases to run the pipeline afterward. In the case of databases, the main steps are:  <br />
+1. __Database download__: Viral reference database ([RVDB](https://rvdb.dbi.udel.edu/)) most recent version is downloaded. If the database is already downloaded in the desired location it will not be downloaded again. This step can be forced by using the flag:  ```--rvdb_update```. <br />
 2.  __Merge database with Viral Candidate sequences__: In this step, sequences from the viral candidates set that are not present in the reference database are included. If the merge has been done previously it will not be repeated. The merge can be forced again by using the flag ```--merge_update```.<br />
 3. __Split datbase__: The full database is split into a subset containing only the sequences classified in the families of interest. Another subset containing the rest of the species is created at the same time. If the subset is already created it will not be created again. It can be forced by using the flag ```--dbsplit_update ```.<br />
 
