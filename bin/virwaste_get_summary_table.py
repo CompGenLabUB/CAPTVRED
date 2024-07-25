@@ -54,7 +54,7 @@ try:
         with open(sys.argv[2], 'r') as file:   ## RAW READS
                 for line in file.readlines():
                         ln=line.rstrip().split("\t")
-                        idf=re.sub(r'(_R1|_R2).(fq|fastq).gz'.format(sufix1,sufix2), '', ln[0])
+                        idf=re.sub(r'(_R1|_R2).*\.(fq|fastq)\.gz'.format(sufix1,sufix2), '', ln[0])
                         if not idf=="Sample":
                                 samples[decoder[idf]][0] += int(float(ln[4]))
                                 samples["TOTAL"][0] += int(float(ln[4]))

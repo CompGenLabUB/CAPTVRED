@@ -3,17 +3,22 @@
 process make_summary_tbl {
     input:
       val sumfls_list
+      val asbdir
+      val repdir
+      val bindir
+      val samplestb
+
     output:
       val ("$outfinal")
     
     script:
  
-    samplestb="${params.sampletbl}";
-    conrp="${params.reports_dir}/${params.runID}_contigs_counts.tbl";
+    // samplestb="${params.samp}";
+    conrp="${repdir}/${params.runID}_contigs_counts.tbl";
     // if (params.taxonslow == true){taxfl="${params.taxslowdir}"};
     // if (params.taxonfast == true){ taxfl="${params.taxfastdir}"};
-    taxrp="${params.reports_dir}/${params.runID}_taxonomy_stats.tbl";
-    outfinal="${params.reports_dir}/${params.runID}_samples_final_summary.tbl"
+    taxrp="${repdir}/${params.runID}_taxonomy_stats.tbl";
+    outfinal="${repdir}/${params.runID}_samples_final_summary.tbl"
     sumflsstr = sumfls_list.join(" ")
     """
    ## Summarize info of contigs and blast:
@@ -23,24 +28,24 @@ process make_summary_tbl {
     for i in \$(awk '\$1!~"^#"{print \$1}' $samplestb ); do 
          if [ \$assem == "megahit" ]; 
          then
-             ncns=\$(grep -c '^>' "${params.asbl_dir}/${params.assembler}/\${i}/\${i}.contigs.fa");
+             ncns=\$(grep -c '^>' "${asbdir}/\${i}/\${i}.contigs.fa");
          elif [ \$assem == "metaspades" ]; 
          then
-             ncns=\$(grep -c '^>' "${params.asbl_dir}/${params.assembler}/\${i}/scaffolds.fasta");
+             ncns=\$(grep -c '^>' "${asbdir}/\${i}/scaffolds.fasta");
          fi;
          
-         ncsg=\$(grep -c '^>' "${params.asbl_dir}/${params.assembler}/\${i}/\${i}.contigs+singletons.fa");
+         ncsg=\$(grep -c '^>' "${asbdir}/\${i}/\${i}.contigs+singletons.fa");
          echo \${i}\t\${ncns}\t\${ncsg} >> ${conrp}
     
     done;
     cat  ${sumflsstr} >> $taxrp; 
     # python script
-    python3 ${params.bindir}/virwaste_get_summary_table.py        \
-          ${samplestb}                                    \
-          ${params.reports_dir}/${params.runID}_multiqc_raw_data/multiqc_fastqc.txt    \
-          ${params.reports_dir}/${params.runID}_multiqc_clean_data/multiqc_fastqc.txt  \
-          ${params.reports_dir}/${params.runID}_multiqc_filt_data/multiqc_fastqc.txt   \
-          ${params.reports_dir}/${params.runID}_multiqc_bowtie_amplicons_alignment_data/multiqc_bowtie2.txt  \
+    python3 ${bindir}/virwaste_get_summary_table.py                        \
+          ${samplestb}                                                     \
+          ${repdir}/${params.runID}_multiqc_raw_data/multiqc_fastqc.txt    \
+          ${repdir}/${params.runID}_multiqc_clean_data/multiqc_fastqc.txt  \
+          ${repdir}/${params.runID}_multiqc_filt_data/multiqc_fastqc.txt   \
+          ${repdir}/${params.runID}_multiqc_align_data/multiqc_bowtie2.txt \
           ${conrp}       \
           ${taxrp}       \
           ${outfinal}    \
@@ -52,22 +57,26 @@ process fill_html_report {
 
     input:
        val samples_sum
+       val samps
+       val bindir
        val figsdir
+       val repdir
+       val htmldir
 
     output:
       val final_html
 
     script:
       
-      final_html="${params.reports_dir}/${params.runID}_CAPTVRED_final_report.html"
+      final_html="${repdir}/${params.runID}_CAPTVRED_final_report.html"
     
       """
-       python3 ${params.bindir}/CAPTVRED_create_report.py                \
-            ${params.sampletbl}                                          \
-            ${params.reports_dir}                                        \
+       python3 ${bindir}/CAPTVRED_create_report.py                \
+            ${samps}                                          \
+            ${repdir}                                        \
             ${params.runID}                                              \
             ${samples_sum}                                               \
-            ${params.html_dir}/CAPTVRED_final_report_template.html  \
+            ${htmldir}/CAPTVRED_final_report_template.html  \
             ${final_html}     ${params.taxalg}
       """
 }

@@ -1,9 +1,10 @@
 #! /usr/bin/env nextflow
 
 include { db_for_kaiju; create_logf; stdrd_link } from './modules/init_conf.nf'
-include {stdrd_link as stdrd_link_otfm; stdrd_link as stdrd_link_set; stdrd_link as stdrd_link_tax } from './modules/init_conf.nf'
+include { stdrd_link as stdrd_link_otfm; stdrd_link as stdrd_link_set} from './modules/init_conf.nf'
+include { stdrd_link as stdrd_link_tax; stdrd_link as stdrd_link_tax_set; stdrd_link as stdrd_link_info} from './modules/init_conf.nf'
 include { merge_rvdb_setref; chek_setref_ids; filter_FOI } from './modules/filter_rvdb.nf'
-include { get_taxonids; get_taxonids_rvdb} from './modules/db_taxonomy.nf'
+include { get_taxonids; get_taxonids_rvdb; set_info_files} from './modules/db_taxonomy.nf'
 include { taxonomizator; taxonomizator as taxonomizator_rvdb} from './modules/db_taxonomy.nf'
 include { get_rvdb; get_names_and_nodes;  get_accession2taxid } from './modules/update_files.nf' 
 
@@ -94,6 +95,7 @@ workflow database_subset (){
       rvdbdir
       ncbidir
       bindir
+      gffdir
       set_fasta
       fulldb_fasta
       fs 
@@ -106,18 +108,20 @@ workflow database_subset (){
       
       stdrd_link_set(set_fasta, "$rvdbdir/setseqs.fasta.gz", logf)
       if (params.dbsplit_update==true) {
-         namedb=fulldb_fasta.replaceAll("fasta.gz|fa.gz", "")
+         //namedb=fulldb_fasta.replaceAll("fasta.gz|fa.gz", "")
          get_accession2taxid(ncbidir, link, logf) 
 
          get_taxonids(rvdbdir, set_fasta, params.setname, get_accession2taxid.out)
-         get_taxonids_rvdb(rvdbdir, fulldb_fasta, namedb, get_accession2taxid.out)
+         get_taxonids_rvdb(rvdbdir, fulldb_fasta, get_accession2taxid.out)
 
-         taxonomizator(rvdbdir, get_taxonids.out, bindir , ncbidir)
+         taxonomizator(rvdbdir, get_taxonids.out.TXID, bindir , ncbidir)
+         stdrd_link_tax_set(taxonomizator.out, "$rvdbdir/set_tax.tax.gz", logf)
          taxonomizator_rvdb(rvdbdir, get_taxonids_rvdb.out, bindir, ncbidir )
-         stdrd_link_tax(taxonomizator_rvdb.out, "$rvdbdir/full_tax.fasta.gz", logf)
+         stdrd_link_tax(taxonomizator_rvdb.out, "$rvdbdir/full_tax.tax.gz", logf)
 
+         set_info_files(get_taxonids.out.GBFL, taxonomizator.out, bindir, gffdir )
+         stdrd_link_info(set_info_files.out, "$rvdbdir/info_summary.tsv", logf)
          filter_FOI(rvdbdir, taxonomizator.out, taxonomizator_rvdb.out, fulldb_fasta, bindir )
-       //  stdrd_link(filter_FOI.out.FOI, "$rvdbdir/foi_subset_db.fasta.gz", logf)
          
          F=filter_FOI.out.FOI
          O=filter_FOI.out.OTHER
@@ -137,7 +141,7 @@ workflow database_subset (){
       DS_OTH=O
 } 
 
-
+/*
 workflow linkfiles() {
    take:
       outfoi
@@ -164,7 +168,7 @@ workflow linkfiles() {
       } else {
             error "Other subset fasta file not found in \"$refseqs_rvdb/other_subset_db.fasta.gz\""
       } */
-} 
+// } 
 
 /*
 workflow prepareblast (){
@@ -189,9 +193,10 @@ workflow prepareblast (){
 
 workflow {
     def refseqs      = "${workflow.projectDir}/references"
-    def refseqs_rvdb = "$refseqs/${params.rvdb_dir}"
+    def refseqs_rvdb = "$refseqs/db/${params.refdb_name}"
+    def refseqs_gff  = "$refseqs_rvdb/gff_refgenomes"
     def refseqs_ncbi = "$refseqs/db/ncbi"
-
+   
     def bindir       = "${workflow.projectDir}/bin"
 
     def rvdb_fa      = "${refseqs_rvdb}/${params.db_name}"
@@ -244,6 +249,7 @@ workflow {
       database_subset( refseqs_rvdb, 
                        ncbidir, 
                        bindir, 
+                       refseqs_gff,
                        params.set_seqs, 
                        mergfa,
                        foisubset,
@@ -253,31 +259,4 @@ workflow {
                      )
 
 
-   //   linkfiles(database_subset.out.DS_FOI, database_subset.out.DS_OTHER, refseqs_rvdb, log_file)
-
-
-      //  stdrd_link(database_subset.out.DS_FOI, "$refseqs_rvdb/foi_subset_db.fasta.gz", create_logf.out )
-      //  stdrd_link_otfm(database_subset.out.DS_OTHER, "$refseqs_rvdb/otfm_subset_db.fasta.gz", create_logf.out )
-      
-      //families_subset_database=database_subset.out.DS_FOI
-      //nonfamilies_subset_database=database_subset.out.DS_OTH
-      
-      //families_subset_database.subscribe { path ->
-      //   def output_path = file("$refseqs_rvdb/foi_subset_db.fasta.gz")
-      //   stdrd_link(path, output_path, log_file)
-      //}
-      
-    //  nonfamilies_subset_database.subscribe { path ->
-    //    def output_path = file("$refseqs_rvdb/other_subset_db.fasta.gz")
-    //    stdrd_link_otfm(path, output_path, log_file)
-    //  }
-
-    //  stdrd_link(families_subset_database, "$refseqs_rvdb/foi_subset_db.fasta.gz", log_file)
-    //  stdrd_link_otfm(nonfamilies_subset_database, "$refseqs_rvdb/other_subset_db.fasta.gz", log_file  ) 
-
-
-     // Dbs non-viral discard:
-        // db_for_kaiju(params.filtDB, create_logf.out)
-    
-     // prepareblast(params.blast_kaiju_db, create_logf.out)
 }

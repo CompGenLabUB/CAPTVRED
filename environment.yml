@@ -35,9 +35,10 @@ dependencies:
   - perl
   - python=3.9.2
   - biopython
+  - pandas
   - bbmap
   - fastqc
-  - multiqc
+  - multiqc=1.9
   - bowtie2
   - samtools
   - seqkit
@@ -53,7 +54,7 @@ dependencies:
   - r-plyr
   - r-gridExtra
   - bioconductor-rtracklayer
-  - bioconductor-GenomicFeatures
+  #- bioconductor-GenomicFeatures=1.42.3
   - bioconductor-Rsamtools
   - bioconductor-GenomicAlignments
   - bioconductor-VariantAnnotation

@@ -4,9 +4,11 @@
 process megahit_assembly_all {
 
     input:
-      val(pe1)
-      val(pe2)
-      val(sgle)
+      val (pe1)
+      val (pe2)
+      val (sgle)
+      val (mhdir)
+      val (logd)
     
     output:
       val  outfl , emit : CGSout
@@ -15,7 +17,7 @@ process megahit_assembly_all {
     script:
     
         sp_root=sgle.split('/')[-1].replaceAll("_sgl.filtered.fastq.gz", "")
-        odir="$params.asbl_dir/megahit/${sp_root}"
+        odir="$mhdir/${sp_root}"
         outfl="${odir}/${sp_root}.contigs+singletons.fa"
         
         """
@@ -25,7 +27,7 @@ process megahit_assembly_all {
             -1 ${pe1} -2 ${pe2}  -r ${sgle}                   \
             --min-contig-len ${params.assemblyMINCONLEN}      \
             --out-dir ${odir} --out-prefix ${sp_root}         \
-            2> ${params.logs_dir}/${sp_root}.megahit_assembly.log;
+            2> ${logd}/${sp_root}.megahit_assembly.log;
         
          cat  ${odir}/${sp_root}.contigs.fa  >  ${odir}/${sp_root}.contigs+singletons.fa;
         
@@ -48,12 +50,12 @@ process megahit_assembly_all {
                             2> ${odir}/${sp_root}_se.bowtie_onto_contigs.log;
                 
                 ## b. Get fasta of unmapped:
-                  samtools fasta -f4  ${odir}/${sp_root}_se.bowtie_onto_contigs.sam  |\
+                  samtools fasta -f4 -F2048  ${odir}/${sp_root}_se.bowtie_onto_contigs.sam  |\
                     seqkit seq -m ${params.assemblyMINCONLEN} >> ${odir}/${sp_root}.contigs+singletons.fa;
                 
                 ## c. Get idxstats of mapped reads:
                  ( 
-                  samtools view -Sb -G 4  \
+                  samtools view -Sb -f2 -F2052  \
                                      ${odir}/${sp_root}_se.bowtie_onto_contigs.sam         \
                                    > ${odir}/${sp_root}_se.bowtie_onto_contigs.maped.bam;
                   samtools sort      ${odir}/${sp_root}_se.bowtie_onto_contigs.maped.bam    \
@@ -73,13 +75,13 @@ process megahit_assembly_all {
                          2> ${odir}/${sp_root}_pe.bowtie_onto_contigs.log;
                          
                 ## b. Get fasta of unmapped:
-                  samtools fasta -f4  ${odir}/${sp_root}_pe.bowtie_onto_contigs.sam  |\
+                  samtools fasta -f4 -F2048  ${odir}/${sp_root}_pe.bowtie_onto_contigs.sam  |\
                     seqkit seq -m ${params.assemblyMINCONLEN}                        |\
                     sed 's/^>\\([^ ]*\\) \\([12]\\)/>\\1:R\2 \\2/'                   |\
                     >>  ${odir}/${sp_root}.contigs+singletons.fa;
                 ## c. Get idxstats of mapped reads:
                  ( 
-                  samtools view -Sb -G 4  \
+                  samtools view -Sb -f2 -F2052 \
                                      ${odir}/${sp_root}_pe.bowtie_onto_contigs.sam         \
                                    > ${odir}/${sp_root}_pe.bowtie_onto_contigs.maped.bam;
                   samtools sort      ${odir}/${sp_root}_pe.bowtie_onto_contigs.maped.bam    \
@@ -110,9 +112,10 @@ process megahit_assembly_all {
 process metaspades_assembly {
 
     input:
-      val(pe1)
-      val(pe2)
-      val(sgle)
+      val (pe1)
+      val (pe2)
+      val (sgle)
+      val (spdir)
     
     output:
       val  outfl , emit : CGSout
@@ -120,7 +123,7 @@ process metaspades_assembly {
       
     script:
         sp_root=sgle.split('/')[-1].replaceAll("_sgl.filtered.fastq.gz", "")
-        odir="$params.asbl_dir/metaspades/${sp_root}"
+        odir="$spdir/${sp_root}"
         outfl="${odir}/${sp_root}.contigs+singletons.fa"
 
        """

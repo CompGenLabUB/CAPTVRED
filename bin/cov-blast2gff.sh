@@ -30,7 +30,7 @@ for sid in $(awk '$1=="T"{print $2}' $COV ); do
                     } else { 
                         S=$7; E=$8; T="+"; 
                     };
-                    print $3"\tblastn\ttranscript\t"S"\t"E"\t"$13"\t"T"\t.\tID="$1
+                    print $3"\tblastn\thsp\t"S"\t"E"\t"$13"\t"T"\t.\tID="$1
                 }' $BLO >> $GFFout;
 done;
 

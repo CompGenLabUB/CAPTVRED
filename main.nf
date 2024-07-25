@@ -3,10 +3,10 @@ nextflow.enable.dsl=2
 
 include { bbduk_clean; samps_idtranslate } from './modules/rawfq_clean.nf'
 //include { fastQC; multiQC_raw; multiQC_clean; multiQC_filt; multiQC_bowtie_amp } from './modules/seq_stats.nf'
-include { fastQC; multiQC } from './modules/seq_stats.nf'
+include { fastQC; multiQC; multiQC_bowtie } from './modules/seq_stats.nf'
 include { generate_index_bowtie; bowtie_amplicons_alignment; bowtie_amplicons_alignment_sg } from './modules/reads_align.nf'
 include { megahit_assembly_all; metaspades_assembly} from './modules/reads_assembly.nf'
-include { make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_onrefseqs; do_cov_on_viralcandidates } from './modules/contigs_align.nf'
+include { make_db_for_blast; do_blastn; do_tblastx; blast_sum_coverage; do_cov_on_viralcandidates } from './modules/contigs_align.nf'
 include { kaiju_raw; discard_nonviral; kaiju_contigs; kaiju_summarize; extract_ids  } from './modules/taxonomy.nf'
 include { coverage_plots; align_counts_plot } from './modules/plots.nf'
 include { handle_contamination_pr } from './modules/contamination.nf'
@@ -70,21 +70,6 @@ workflow init_run() {
 
     fsys.view() 
     create_filesys(fsys, logfl)
-
-   /* if (params.assembler ==~ /(?i)MEGAHIT/){
-        params.subasb_dir="$params.asbl_dir/megahit"
-    }else if (params.assembler ==~ /(?i)METASPADES/ ) {
-        params.subasb_dir="$params.asbl_dir/metaspades"
-    }
-
-    if (params.taxalg ==~ /(?i)KAIJU/ ) {
-      params.subtax_dir="$params.taxdir/kaiju"
-    } else if (params.taxalg ==~ /(?)BLASTN/ ){
-      params.subtax_dir="$params.taxdir/blastn"
-    } else if (params.taxalg ==~ /(?)TBLASTX/ ){ 
-      params.subtax_dir="$params.taxdir/tblastx"
-    }
-*/
 
   emit:
     create_filesys.out
@@ -186,6 +171,7 @@ workflow idtranslate() {
 }
 
 workflow reads_filter_nonviral() {
+    //errorStrategy 'finish'
     take:
       samps
       kdb_dir  // Kaiju database directory (NR_EUK)
@@ -236,39 +222,19 @@ workflow reads_align_wf() {
     bowtie_amplicons_alignment(cluster_index_path, pe1, pe2, sgl, params.ampaln_dir)
     bowtie_amplicons_alignment_sg(cluster_index_path, pe1, pe2, sgl, params.ampaln_dir )
     // samps_align=multiQC_bowtie_amp(bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect())
-    samps_align=bowtie_amplicons_alignment.out.mix(bowtie_amplicons_alignment_sg.out).collect()
-    multiQC( samps_align, params.reports_dir, params.logs_dir, "bowtie_amplicons_alignment")
+    peout=bowtie_amplicons_alignment.out.LOG.mix(bowtie_amplicons_alignment.out.STS)
+    sgout=bowtie_amplicons_alignment_sg.out.LOG.mix(bowtie_amplicons_alignment_sg.out.STS)
+    samps_align=peout.mix(sgout).collect()
+    samps_align.view()
+    multiQC_bowtie( samps_align, params.reports_dir, params.logs_dir, "align")
   
   emit:
     ALL=samps_align
-    PE=bowtie_amplicons_alignment.out
-    SG=bowtie_amplicons_alignment_sg.out
+    PE=bowtie_amplicons_alignment.out.bamPE
+    SG=bowtie_amplicons_alignment_sg.out.bamSG
 }
 
 
-workflow trinity_assembly_flow () {
-    take: 
-      pe1
-      pe2
-      sgl      
-    
-    main:
-      
-      ref_fa="${params.amplicon_refseqs}"
-      trinity_assembly_pe(pe1, pe2, sgl)
-      blast_flow(ref_fa, trinity_assembly_pe.out)
-      blast_flow_rev(trinity_assembly_pe.out, ref_fa)
-      
-      QOR=blast_flow.out
-      ROQ=blast_flow_rev.out
-      
-      best_reciprocal_hit(trinity_assembly_pe.out.CGSout, ref_fa, QOR, ROQ )
-
-    emit:
-      TBL=best_reciprocal_hit.out
-      FASTA=trinity_assembly_pe.out.CGSout
-      BLOUT=QOR
-}
 
 
 workflow vizualise_results_flow() {
@@ -277,9 +243,21 @@ workflow vizualise_results_flow() {
         sgbam
         blasttbl
         brh
+        bindir
+        repdir
+        dbdir
+        gffdir
         
     main:
-        coverage_plots(pebam, sgbam, blasttbl, brh)
+        coverage_plots(pebam, 
+                       sgbam, 
+                       blasttbl, 
+                       brh, 
+                       bindir, 
+                       repdir, 
+                       dbdir, 
+                       gffdir
+                       )
         
     emit:
         coverage_plots.out.ODIR
@@ -309,7 +287,13 @@ workflow direct_blast_n () {
             blastOut=do_blastn.out.OUT
         }
         
-        blast_sum_coverage(blastOut, "F", "F" )
+        blast_sum_coverage(blastOut, 
+                           "F", 
+                           "F", 
+                           params.refdb_dir, 
+                           params.subasb_dir, 
+                           params.bindir,
+                           params.reports_dir )
         
     emit:
         BY_R=blast_sum_coverage.out.BYR
@@ -353,22 +337,26 @@ workflow direct_blast_tx () {
 }
 
 
-workflow coverage_onrefseqs() {
+workflow coverage_compute() {
     
     take:
         contigs_fa
         assign_byr
+        reffa
 
     main:
      
-     reffa="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}"
+     // reffa="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs}"
      make_db_for_blast( reffa, "FALSE")   // FALSE refers to: not redo db if it already exists.
-     do_cov_on_viralcandidates("${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}", 
-                     make_db_for_blast.out.DB,
-                     contigs_fa,
-                     assign_byr,
-                     params.bl_suffix
-                     )
+     do_cov_on_viralcandidates("${params.refdb_dir}/${params.set_tax}", 
+                                make_db_for_blast.out.DB,
+                                contigs_fa,
+                                assign_byr,
+                                params.bl_suffix,
+                                params.bindir, 
+                                params.tmp_dir, 
+                                params.cov_dir
+                                )
 
    
     emit:
@@ -384,17 +372,20 @@ params.ctvdir      =  workflow.projectDir
 params.refseqs     =  "${params.ctvdir}/references"
 params.bindir      =  "${params.ctvdir}/bin"
 params.db_dir      =  "${params.refseqs}/db"
-params.kaijuDBD    =  "${params.db_dir}/kaiju"
-params.ncbiD       =  "${params.db_dir}/ncbi"
+params.refdb_dir   =  "${params.db_dir}/${params.refdb_name}"
+params.gff_dir     =  "${params.refdb_dir}/gff_refgenomes"
+params.kaijudir    =  "${params.db_dir}/kaiju"
+params.ncbidir     =  "${params.db_dir}/ncbi"
 params.dbset_dir   =  "${params.refseqs}/${params.setname}"
 params.bbdukREF    =  "${params.refseqs}/bbmap/resources/adapters.fa"
 
-params.tmp_dir     =  "${params.basedir}/tmp"      
+params.tmp_dir      =  "${params.basedir}/tmp"      
 params.rawqc_dir    =  "${params.basedir}/raw"     
 params.clnfq_dir    =  "${params.basedir}/clean"   
 params.ampaln_dir   =  "${params.basedir}/aln"     
 params.asbl_dir     =  "${params.basedir}/assembly"
 params.taxdir       =  "${params.basedir}/taxonomy"
+params.cov_dir      =   "${params.basedir}/coverage"
 params.reports_dir  =  "${params.basedir}/reports" 
 params.logs_dir     =  "${params.basedir}/logs"    
 params.html_dir     =  "${params.basedir}/html"    
@@ -413,9 +404,9 @@ if (params.assembler ==~ /(?i)MEGAHIT/){
       params.subtax_dir="$params.taxdir/tblastx"
     }
 
-
 workflow () {
-
+  
+  
     //check_params()
     println "# Running   : $workflow.scriptId - $workflow.scriptName"
     println "# Project   : $workflow.projectDir"
@@ -423,11 +414,6 @@ workflow () {
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.samp"
 
-    def refseqs      = "${workflow.projectDir}/references"
-    def refseqs_rvdb = "$refseqs/db/rvdb_nt" 
-    def refseqs_ncbi = "$refseqs/db/ncbi"
-
-    def bindir       = "${workflow.projectDir}/bin"
     println " ### $workflow.launchDir ## $params.bindir ## $params.refseqs ## $params.tmp_dir ## $params.html_dir"
     //set_dep_params() // | collect | init_run()
     //Channel.of(set_dep_params.out).view()
@@ -455,21 +441,25 @@ workflow () {
         CLNR=reads_clean.out.merge()
         to_kaiju=KDB.combine(CLNR).merge()
         to_kaiju.view()
-        reads_filter_nonviral(to_kaiju, params.kaijuDBD, params.ncbiD, params.taxdir)
+        reads_filter_nonviral(to_kaiju, params.kaijudir, params.ncbidir, params.taxdir)
  
 
     // 3 // Map reads on database   // //
-        dbtobowtie="$refseqs_rvdb/$params.fams_subset"
+        dbtobowtie="$params.refdb_dir/$params.fams_subset"
         generate_index_bowtie(dbtobowtie)
         reads_align_wf(generate_index_bowtie.out, reads_filter_nonviral.out)
 
     // 4 // Assembly reads into contigs // //
     
         if (params.assembler ==~ /(?i)MEGAHIT/){
-             megahit_assembly_all(reads_filter_nonviral.out)
+             megahit_assembly_all(reads_filter_nonviral.out, 
+                                  params.subasb_dir, 
+                                  params.logs_dir  )
              CNFA=megahit_assembly_all.out.CGSout
         }else if (params.assembler ==~ /(?i)METASPADES/ ){
-             metaspades_assembly(reads_filter_nonviral.out)
+             metaspades_assembly(reads_filter_nonviral.out, 
+                                 params.subasb_dir
+                                 )
              CNFA=metaspades_assembly.out.CGSout
         }
     
@@ -495,18 +485,23 @@ workflow () {
           
         } else if (params.taxalg ==~ /(?)BLASTN/ ){
             //Directly blast into database //
-            ref_fa="${params.blast_refseqs_dir}/${params.fams_subset}";
+            ref_fa="${params.refdb_dir}/${params.fams_subset}";
             // blast_flow( ref_fa, CNFA.merge())
 
             // direct_blast(ref_fa, CNFA.merge())
             direct_blast_n(ref_fa, CNFA)
             
-             if ( params.general_only == false) {
-                  coverage_onrefseqs(direct_blast_n.out.CFA, 
-                                     direct_blast_n.out.BY_R
+             if ( params.do_cov_figures == true) {
+                  
+                  ref_fasta="$params.refdb_dir/${params.set_seqs}"
+
+                  coverage_compute(direct_blast_n.out.CFA, 
+                                     direct_blast_n.out.BY_R, 
+                                     ref_fasta
                                     )
-                  blOUT=coverage_onrefseqs.out.blastout                   
-                  covOUT=coverage_onrefseqs.out.coverage
+
+                  blOUT=coverage_compute.out.blastout                   
+                  covOUT=coverage_compute.out.coverage
              } else {
                   blOUT=""                   
                   covOUT=""
@@ -527,12 +522,12 @@ workflow () {
 
             direct_blast_tx(ref_fa, CNFA)
             
-            if ( params.general_only == false) {
-                  coverage_onrefseqs(direct_blast_tx.out.CFA, 
+            if ( params.do_cov_figures == true) {
+                  coverage_compute(direct_blast_tx.out.CFA, 
                                      direct_blast_tx.out.BY_R
                      )
-                  blOUT=coverage_onrefseqs.out.blastout                   
-                  covOUT=coverage_onrefseqs.out.coverage
+                  blOUT=coverage_compute.out.blastout                   
+                  covOUT=coverage_compute.out.coverage
             } else {
                   Channel.from("TAXONOMY APPROACH IS NOT AVAILABLE... please check your spelling!").view()
                   blOUT=""                   
@@ -554,7 +549,9 @@ workflow () {
     
         // 6.1. // Summary tables // //
         
-        make_summary_tbl(FIN)
+        
+        sampdef="$params.ctvdir/$params.samp"
+        make_summary_tbl(FIN, params.subasb_dir, params.reports_dir, params.bindir, sampdef)
         
         // 6.2. // Plot coverage by genome (reads and contigs)
         
@@ -562,12 +559,21 @@ workflow () {
                        reads_align_wf.out.PE,
                        reads_align_wf.out.SG,
                        blOUT,
-                       covOUT
+                       covOUT,
+                       params.bindir,
+                       params.reports_dir,
+                       params.refdb_dir, 
+                       params.gff_dir
                        )
         figsDIR=vizualise_results_flow.out
         
         // 6.3. // HTML report. 
-        fill_html_report(make_summary_tbl.out, figsDIR)
+        fill_html_report (make_summary_tbl.out, 
+                          sampdef,
+                          params.bindir,
+                          figsDIR, 
+                          params.reports_dir,
+                          params.html_dir)
         
                        
         // 6.2 // Taxonomy summary

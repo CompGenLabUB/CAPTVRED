@@ -47,6 +47,7 @@ process stdrd_link () {   // Create a link with stable name so it can be called 
         val dest_link  //Full path
     
     script:
+      println "   > Linking $origin_file to $dest_link :)"
       """
          if [ -f $origin_file ]; then
             ln -fs $origin_file  $dest_link >> $logfl 2>&1

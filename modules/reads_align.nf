@@ -48,6 +48,9 @@ process bowtie_amplicons_alignment {
     output:
     bowtie_amplicons_alignment
       val "${odir}/${pe_root}.bowtie.sorted.mapped.bam",   emit: bamPE
+      val "${odir}/${pe_root}.bowtie.log", emit: LOG
+      val "${odir}/${pe_root}.bowtie_flagstat.txt", emit: STS
+      
       
     script:
 
@@ -56,6 +59,7 @@ process bowtie_amplicons_alignment {
         // odir=params.ampaln_dir
 
         pe_root=pe1.split('/')[-1].toString().replaceAll("_pe1.filtered.fastq.gz", "_pe")
+
 
         """
         
@@ -74,7 +78,8 @@ process bowtie_amplicons_alignment {
                        > ${odir}/${pe_root}.bowtie.sorted.bam;
         rm -vf ${odir}/${pe_root}.bowtie.bam;
         samtools index  ${odir}/${pe_root}.bowtie.sorted.bam;
-        samtools view -F2052  -q ${params.alignMINQ} -h ${odir}/${pe_root}.bowtie.sorted.bam \
+        samtools flagstat  ${odir}/${pe_root}.bowtie.sorted.bam > ${odir}/${pe_root}.bowtie_flagstat.txt;
+        samtools view -F2052 -f2 -q ${params.alignMINQ} -h ${odir}/${pe_root}.bowtie.sorted.bam \
                     -o ${odir}/${pe_root}.bowtie.sorted.mapped.bam
         touch ${odir}/${pe_root}.ok
         
@@ -94,6 +99,8 @@ process bowtie_amplicons_alignment_sg {
     output:
 
       val "${odir}/${sgle_root}.bowtie.sorted.mapped.bam", emit: bamSG
+      val "${odir}/${sgle_root}.bowtie.log", emit: LOG
+      val "${odir}/${sgle_root}.bowtie_flagstat.txt", emit: STS
       
     script:
 
@@ -119,6 +126,7 @@ process bowtie_amplicons_alignment_sg {
                           > ${odir}/${sgle_root}.bowtie.sorted.bam;
             rm -vf ${odir}/${sgle_root}.bowtie.bam;
             samtools index  ${odir}/${sgle_root}.bowtie.sorted.bam;
+            samtools flagstat  ${odir}/${sgle_root}.bowtie.sorted.bam > ${odir}/${sgle_root}.bowtie_flagstat.txt;
             samtools view -F2052 -h -q ${params.alignMINQ} ${odir}/${sgle_root}.bowtie.sorted.bam \
                   -o ${odir}/${sgle_root}.bowtie.sorted.mapped.bam;
             touch ${odir}/${sgle_root}.ok

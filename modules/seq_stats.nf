@@ -11,9 +11,9 @@ process fastQC {
       
     script:
         // println "## FASTQC on sample: $samps"
-        ofl=samps.toString().split("/")[-1].replaceAll(".gz", ".QC")
+        ofl=samps.toString().split("/")[-1].replaceAll(".gz|.sorted.mapped.bam", ".QC")
         odir="$rawfdir/$ofl"
-        logfl=samps.toString().split("/")[-1].replaceAll(".gz", ".log")
+        logfl=samps.toString().split("/")[-1].replaceAll(".gz|.sorted.mapped.bam", ".log")
         logfl="$logsdir/fastQC_$logfl"
 
     """
@@ -26,17 +26,17 @@ process fastQC {
 
 
 process multiQC {
+    
     input:
-     val samps
+     val sps
      val reportsdir
      val logdir
      val type
      
     script:
-   
-      //input is a list, transdorm it into a string so miliqc can use it as argument
-    sampdirs=samps.join("  ")
-     
+      sampdirs=sps.join("  ")
+      //input is a list, transform it into a string
+
     """
     multiqc $sampdirs \
         --title "$params.runID MultiQC in ${type} reads"    \
@@ -51,14 +51,16 @@ process multiQC {
 
 
 process multiQC_raw {
+    
     input:
-     val samps
+     val sps
      val reportsdir
      val logdir
+    
     script:
-   
+      sampdirs=sps.join("  ")
       //input is a list, transdorm it into a string so miliqc can use it as argument
-    sampdirs=samps.join("  ")
+   
      
     """
     multiqc $sampdirs \
@@ -74,15 +76,14 @@ process multiQC_raw {
 
 process multiQC_clean {
     input:
-     val samps
+     val sps
      val repdir
      val logdir
 
     script:
-   
+      sampdirs=sps.join("  ")
       //input is a list, transdorm it into a string so miliqc can use it as argument
-    sampdirs=samps.join("  ")
-     
+   
     """
     multiqc $sampdirs \
         --title "$params.runID MultiQC in clean reads"  \
@@ -98,11 +99,12 @@ process multiQC_clean {
 
 process multiQC_filt {
     input:
-     val x
+     val sps
+    
     script:
-   
+      sampdirs=sps.join("  ")
       //input is a list, transdorm it into a string so miliqc can use it as argument
-    sampdirs=x.join("  ")
+    
      
     """
     multiqc $sampdirs \
@@ -117,24 +119,27 @@ process multiQC_filt {
 }
 
 
-process multiQC_bowtie_amp { 
+process multiQC_bowtie { 
 
     input:
-     val x
+     val sps
+     val reportsdir
+     val logdir
+     val type
     
     script:
-   
+     // samplogs=sps.join("  ").replaceAll(".sorted.mapped.bam", ".log")
     //input is a list, transform it into a string so multiqc can use it as argument
-    //sampdirs=x.join("  ")
-    samplogs=x.join("  ").replaceAll(".sorted.mapped.bam", ".log")
+    sampdirs=sps.join("  ")
+    
     """
     echo "AQUI ESTEMM" > kkfinsh
-    multiqc $samplogs \
-        --title "$params.runID MultiQC in bam files after amplicon align with bowtie"    \
+    multiqc ${sampdirs}  \
+        --title "${params.runID} MultiQC in bam files after amplicon align with bowtie"    \
         --fullnames                                     \
         --force                                         \
-        --filename ${params.runID}_multiqc_bowtie_amplicons_alignment.html   \
-        --outdir ${params.reports_dir}  \
-        2> ${params.logs_dir}/${params.runID}_multiqc_bowtie_amplicons_alignment.log;
+        --filename ${params.runID}_multiqc_${type}.html   \
+        --outdir ${reportsdir}  \
+        2> ${logdir}/${params.runID}_multiqc_${type}.log;
     """
 }

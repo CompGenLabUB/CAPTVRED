@@ -6,6 +6,10 @@ process coverage_plots {
         val sgbam
         val blastout
         val covfl
+        val bindir
+        val reptdir
+        val datab_dir
+        val gffdir
     
     output:
         val outdir, emit: ODIR
@@ -13,24 +17,27 @@ process coverage_plots {
     script:
     
     gffblast=blastout.replaceAll(/.tbl$/ ,".gff")
-    rdir="${params.amplicon_refseqs_dir}/gff_refgenomes"
     samp_id=pebam.split('/')[-1].toString().replaceAll("_pe.bowtie.sorted.mapped.bam","")
-    //idtoname="${params.amplicon_refseqs_dir}/Viral_candidates_zoonosis.ids"
-    infofl="${params.amplicon_refseqs_dir}/${params.amplicon_refseqs_info}"
-    outdir="${params.reports_dir}/coverage_figures"
+    outdir="${reptdir}/coverage_figures"
+    
+    infofl="${datab_dir}/info_summary.tsv"
+    coordfl="${gffdir}/refseqs_coordinates.tsv"
+
     """
-     if [ -s $covfl ]; then 
-          bash ${params.bindir}/cov-blast2gff.sh  ${covfl}   ${blastout}   ${gffblast}
+     mkdir -vp ${outdir};
+
+     if [ -s ${covfl} ]; then 
+     bash ${bindir}/cov-blast2gff.sh  ${covfl}   ${blastout}   ${gffblast}
      else
           touch  ${gffblast};
      fi;
         
-     Rscript ${params.bindir}/CAPTVRED_coverage_figures.R       \
-             ${rdir}          ${rdir}/refseqs_coordinates.tbl   \
+     Rscript ${bindir}/CAPTVRED_coverage_figures.R              \
+             ${gffdir}          ${coordfl}                        \
              ${samp_id}       ${pebam}         ${sgbam}         \
              ${gffblast}      ${infofl}                         \
              ${outdir}                                          \
-            2> ${params.reports_dir}/coverage_figures/Coverage_${samp_id}.log 1>&2;
+            2> ${reptdir}/coverage_figures/Coverage_${samp_id}.log 1>&2;
 
     """
 

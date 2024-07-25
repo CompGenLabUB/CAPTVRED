@@ -14,6 +14,9 @@ use warnings;
 use Data::Dumper;
 use Getopt::Long;
 use global qw( :Counter );
+use Compress::Zlib;
+use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
+
 $global::_verbose{RAW} = 1;
 $_cntN = 50000;
 my $debug = 0; 
@@ -28,7 +31,7 @@ my $petbl;   ## Tabular file obtained with samtools idxstats: each row is a cont
 my $setbl;   ## Tabular file obtaiden with samtools idxstats: each row is a contig, 3rd column is #se-reads mapped 
 
 GetOptions (
-    'samp=s'              =>\$sampid,
+    'samp=s'            => \$sampid,
     'i|db_info=s'       => \$datab_info,
     'B=s'               => \$blastcov,
     'mincov:i'          => \$mincov,
@@ -64,6 +67,7 @@ my $sf=defined($setbl) ? $setbl : "Not provided";
 print STDERR "\n=========================================\n";
 print STDERR "### RUNNING PARAMS ###  \n";
 print STDERR "=========================================\n";
+print STDERR "SAMPLE        :\t$sampid\n";
 print STDERR "DB  info  file:\t$datab_info\n";
 print STDERR "Coverage  file:\t$blastcov\n";
 print STDERR "Min.  coverage:\t$mincov\n";
@@ -140,7 +144,7 @@ print STDERR Dumper \%rcounts if $debug;
 print STDERR "### READING BLAST COVERAGE FILE\n";
 open(COV, $blastcov);
 $c = "B"; $n = 0;
-# my %qrcnts;    # n reads maped in each query
+my %qrcnts;    # n reads maped in each query
 while (<COV>) {
     next if /^\s*$/o;
     chomp;
@@ -162,20 +166,24 @@ while (<COV>) {
          $nrd = (exists($rcounts{$cid}) ? $rcounts{$cid} : 1);
          $qids{$cid} = [ $tag, $obs[2], $obs[11], $obs[12], $rf, $ks, $nrd ];
                      #  0.TAG   1.len   2.BHlen   3.BHCov  4.RefSqId  5.KaiScore  6.n.reads 
+         print STDERR join("\t", "LELELEL", @{$qids{$cid}});
+         print STDERR "\n";
          exists($rids{$rf}) || ($rids{$rf} = { '##SUM##' => 0, '##NCTGS##' => 0 });
          $rids{$rf}{$cid} = $nrd;
          $rids{$rf}{'##SUM##'} += $nrd;
          $rids{$rf}{'##NCTGS##'}++;
-         # push @{ $rids{$rf} }, $cid;
-         # mapped reads summatory:
-       #  exists($qrcnts{$rf[2]}) || ($qrcnts{$rf[2]} = 0);
-         #exists ($rcounts{$obs[1]}) || ($rcounts{$obs[1]} = 1);  ## singletons
-       #  $qrcnts{$rf[2]} += $rcounts{$obs[1]};
-         # . . . 
-         #$kids{$rf[2]}{$obs[1]}=$rcounts{$obs[1]};
-         #$kids{$rf[2]}{"tot"}+=$rcounts{$obs[1]};
-        # exists($bcount{$rf[2]}) || ($bcount{$rf[2]} = 0);
-        # $bcount{$rf[2]}++;
+    
+ 
+   ##      # push @{ $rids{$rf} }, $cid;
+   ##      # mapped reads summatory:
+   ##    #  exists($qrcnts{$rf[2]}) || ($qrcnts{$rf[2]} = 0);
+   ##      #exists ($rcounts{$obs[1]}) || ($rcounts{$obs[1]} = 1);  ## singletons
+   ##    #  $qrcnts{$rf[2]} += $rcounts{$obs[1]};
+   ##      # . . . 
+   ##      #$kids{$rf[2]}{$obs[1]}=$rcounts{$obs[1]};
+   ##      #$kids{$rf[2]}{"tot"}+=$rcounts{$obs[1]};
+   ##     # exists($bcount{$rf[2]}) || ($bcount{$rf[2]} = 0);
+   ##     # $bcount{$rf[2]}++;
 
     } else { # if ( $obs[0] eq "T") {
 
@@ -197,10 +205,17 @@ close(COV);
 # print STDOUT Dumper \%rids;
 
 print STDERR "### READING GENOMES INFO FILE\n";
-open(GIN, $datab_info);
+
+my $GIN;
+if ($datab_info =~ /.*gz/) {
+
+    $GIN=IO::Uncompress::Gunzip->new($datab_info) or die "Error opening $datab_info: $!";
+}else{
+    open($GIN, '<', $datab_info) or die "Error opening $datab_info: $!";
+}
 my ($sid, $tid, $spc, $fam,$k, $nreads, $ncontigs);
 $c = "G"; $n = 0;
-while (<GIN>) {
+while (<$GIN>) {
     next if /^\s*$/o;
     chomp;
     #All reference sequences-> Save in hash:
@@ -255,8 +270,9 @@ while (<GIN>) {
     &counter($n,$c) if ($n % 1000 == 0);
 }; # while GIN
 &counter_end($n);
-close(GIN);
-
+close($GIN);
+# ( $datab_info =~ /.*gz/ ) ? ( $gzip->close; close($gzfl)) : close(GIN);
+#if ( $datab_info =~ /.*gz/ ) {$gzip->close; close($gzfl) }else { close(GIN)};
 
 print STDERR "### WRITTING GENOMES INFORMATION\n";
 open ( ROUT, ">", join( "_", $out_prefix, "taxonomysum_bysequence.tbl" ));
