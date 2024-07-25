@@ -1,0 +1,16 @@
+#SAMPID	ILLUMINA_ID	SAMPNM	PAIRED	SEQUENCING_MET	ORIGIN
+TS_SD_00	simset_m00	SP0	Simulated_set	Simulated
+TS_SD_01	simset_m01	SP1	Simulated_set	Simulated
+TS_SD_03	simset_m03	SP2	Simulated_set	Simulated
+TS_SD_05	simset_m05	SP3	Simulated_set	Simulated
+TS_SD_10	simset_m10	SP4	Simulated_set	Simulated
+TS_SD_15	simset_m15	SP5	Simulated_set	Simulated
+TS_CD_00	simset_comp_m00	SP0	Simulated_set	Simulated
+TS_CD_01	simset_comp_m01	SP1	Simulated_set	Simulated
+TS_CD_03	simset_comp_m03	SP2	Simulated_set	Simulated
+TS_CD_05	simset_comp_m05	SP3	Simulated_set	Simulated
+TS_CD_10	simset_comp_m10	SP4	Simulated_set	Simulated
+TS_CD_15	simset_comp_m15	SP5	Simulated_set	Simulated
+TS_RD_SW2	sewage	SP1	Pandevir	SewageSample
+TS_RD_GU2	guano	SP2	Pandevir	Bat_guano
+TS_RD_LX2	lixiviate	SP3	Pandevir	Pig_lixiviate
