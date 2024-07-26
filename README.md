@@ -73,7 +73,7 @@ mamba activate captvred
 ### Create a project directory <br />
 The pipeline and all  related files will be placed in this location.<br />
 ```{.sh}
-mkdir MYPROJECT
+mkdir -vp MYPROJECT
 cd MYPROJECT
 ```
 
