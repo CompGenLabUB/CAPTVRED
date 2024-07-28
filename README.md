@@ -141,7 +141,7 @@ For each sample three tables are generated for viral assignations:
 
 * Read level:
   
-  | READ_ID   | TAG | READ_LENGTH | BESTHIT_LEN | BESTHIT_COVERAGE | REFSEQ_ID   | KAIJU_SCORE | NREADS_MAPED | TAXONID   | SPECIES                                   | FAMILY            |
+| READ_ID   | TAG | READ_LENGTH | BESTHIT_LEN | BESTHIT_COVERAGE | REFSEQ_ID   | KAIJU_SCORE | NREADS_MAPED | TAXONID   | SPECIES                                   | FAMILY            |
 |-----------|-----|-------------|-------------|------------------|-------------|-------------|--------------|-----------|-------------------------------------------|-------------------|
 | k127_80   | B   | 2189        | 2189        | 100.000          | NC_002023.1 | NA          | 3178         | 11320     | Influenza_A_virus                         | Orthomyxoviridae  |
 | k127_67   | B   | 5731        | 5731        | 100.000          | AF208067.1  | NA          | 10819        | 694005    | Murine_coronavirus                        | Coronaviridae     |
@@ -178,7 +178,7 @@ For each sample three tables are generated for viral assignations:
 | AF255742.1  | 11320    | Influenza_A_virus    | Orthomyxoviridae  | 1565       | 1411     | 90.160       | 99.929        | 1             | 1610         |
 
 * Species level:
- ```
+
 | TAXON_ID | SPECIES                                              | FAMILY         | MIN_COV | MAX_COV | MEAN_COV | MIN_PID | MAX_PID | MEAN_PID | N_SEQS | N_CONTIGS | NREADS_MAPED | INFO                                                                                           |
 |----------|------------------------------------------------------|----------------|---------|---------|----------|---------|---------|----------|--------|-----------|--------------|------------------------------------------------------------------------------------------------|
 | 1335626  | Middle_East_respiratory_syndrome-related_coronavirus | Coronaviridae  | 99.393  | 99.393  | 99.393   | 99.349  | 99.349  | 99.349   | 1      | 1         | 58734        | SEQ:MK129253.1,LEN:30150,NUCALN:29967,COV:99.393,BHIDENT:99.349,N:1                            |
@@ -188,7 +188,6 @@ For each sample three tables are generated for viral assignations:
 | 694014   | Avian_coronavirus                                    | Coronaviridae  | 99.352  | 99.352  | 99.352   | 99.993  | 99.993  | 99.993   | 1      | 1         | 53712        | SEQ:AJ311317.1,LEN:27635,NUCALN:27456,COV:99.352,BHIDENT:99.993,N:1                            |
 | 2496529  | Mengla_virus                                         | Filoviridae    | 99.169  | 99.169  | 99.169   | 100.000 | 100.000 | 100      | 1      | 2         | 35000        | SEQ:NC_055510.1,LEN:18300,NUCALN:18148,COV:99.169,BHIDENT:100.000,N:2                          |
 
- ```
 
 # Data:
 * The data for the test set is provided in the following [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz). The folder contains 15 test samples (3 real metagenomics samples and 12 synthetic samples), and the script used for data generation.
