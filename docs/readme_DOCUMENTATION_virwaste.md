@@ -1,7 +1,7 @@
 # CONTENTS:
 - [Environment set up](#Environment-set-up)
      - [Projectvars file](#Projectvars-file)
-    - [Configuration file](#Configuration-file)
+     - [Configuration file](#Configuration-file)
      - [Data summary](#Data-summary)
      - [Input data](#Input-data)
      - [Reference sequences](#Reference-sequences)<br /><br />
@@ -13,37 +13,33 @@
 - [Pipeline detailed description](#Pipeline-detailed-description)
 <br /><br />
 # Environment set up
-### Projectvars file
 
-Includes all environment variables necessary to run the pipeline. When 
-this script is executed the whole directories filesystem is created.
-Every run must have its projectvars.sh inside its base folder.
+Set up module 
 
-* Run identifier ($RUNID) is the specific name of the sequencing experiment.  <br />
-* $R1 and $R2, which correspond to the pattern used to describe the first and second pair of
-files respectively. (see [Input Data section](#input-data))
+```{.sh}
+cd MYPROJECT
+nextflow conf/main.nf              \
+         --set_seqs /path/to/Viral_candidates_fasta.gz  \
+         --setname "MY_VIRAL_CANDIDATES"
+```
+> [!NOTE]
+> **Some considerations:**<br />
+> - Please ensure to lauch this command from the project directory.<br />
+> - This step might take some time since it needs to download and process the reference database.<br />
+<details>
+  <summary><bl>More details about the references setup<bl></summary>
+  <br />
+ 
+This module prepares the file setup and databases to run the pipeline afterward. In the case of databases, the main steps are:  <br />
+1. __Database download__: Viral reference database ([RVDB](https://rvdb.dbi.udel.edu/)) most recent version is downloaded. If the database is already downloaded in the desired location it will not be downloaded again. This step can be forced by using the flag:  ```--rvdb_update```. <br />
+2.  __Merge database with Viral Candidate sequences__: In this step, sequences from the viral candidates set that are not present in the reference database are included. If the merge has been done previously it will not be repeated. The merge can be forced again by using the flag ```--merge_update```.<br />
+3. __Split datbase__: The full database is split into a subset containing only the sequences classified in the families of interest. Another subset containing the rest of the species is created at the same time. If the subset is already created it will not be created again. It can be forced by using the flag ```--dbsplit_update ```.<br />
 
-* Root directory ($RDIR) is the top-level directory of the project.
-* Base directory ($BDIR) refers to the root folder where all files created 
-in each of the steps in the pipeline will be stored.
-* Nextflow directory ($NXFDIR) is the directory of the local CAPTVRED repository.
-* Directory that contains the fasta file with the reference sequences and 
-the tabular info file ($AMPSQD). The pipeline will create  bowtie and
-blast databases and indexes of the fasta in this folder. <br />
-* Name of the file containing the amplicon reference sequences ($AMPSQFA).
-Bowtie and blast databases will be created with the same prefix name. <br />
-* Directory where reference sequences and databases are stored  ($REFSQSD), ant its subdirectories: $BDBD (Blast reference database directory), $AMPSQD (Directory that contains the fasta file of Viral Candidates reference sequences), $KAIDBD(Directory where the kaiju databases are installed).
+Note that by redoing any of the described flags, all the downstream steps will be repeated as well. Thus, by activating the flag ```--rvdb_update```, ```--merge_update``` is automatically activated; and by activating ```--merge_update```, ```--dbsplit_update ``` is activated as well.
+If the run is interrupted for any reason, remember that the ```-resume``` nextflow option will restart the pipeline from where it left off in the previous execution.
 
-These variables are set in the _projectvars.sh_ file by the user.
-Recommended filesystem structure would be:
+</details>
 
-<img src="./CAPTVRED_filesystem.png" title="FILESYSTEM" alt="filesystem_structure" width="350px" align="center" />
-
-After running _projectvars.sh_:
-* fastq.gz files must be placed (or linked) to the directory 
-"$BDIR/rawseqs_fastq"
-* samples_definition.tbl must be placed directly on the $BDIR
-* reference sequences (in fa.gz) format must be placed (or linked) in the REFSEQS directory.
 
 ### Configuration file:
 
@@ -132,49 +128,22 @@ is the pattern for the first file of each pair, and `R1="_r02"`, since this
 is the pattern for the second file of each pair.
 
 
-### Viral candidates reference sequences
-
-__Tabular info file__ <br />
-Descriptive tabular file including the NCBI Id, full name, short name and 
-taxon ID for each of the reference sequences in the reference set.  
-
-    Camps are: Family, Specie, Host, SeqID, Region, Size, Name, Description
-
-
-__Fasta file__  <br />
-Fasta file containing the reference sequences of the Viral Candidates. Identifier must be the NCBI ID 
-and optionally other information (separated with a space!). 
+### Viral candidates reference sequence fasta file 
+<br />
+Fasta file containing the reference sequences of the Viral Candidates. The identifier must be in GENBANK format (acc|PANEL_NAME|seqid|INFO).
 These sequences will be used as a reference database for alignments (performed 
 with bowtie for the reads and blast for the contigs) and for the taxonomic 
 classification (see "Kaiju databases"  subsection).
 
 
-__GFF files__ <br />
-A separate GFF file for each of the viral candidates must be stored in the "gff_refgenomes" directory, those will be used to graphically visualize the alignments and coverage of each genome.
-
 ### Databases
-__Kaiju Databases__ <br />
-Taxonomic classification with kaiju is performed by default using the ***rvdb*** database, and ***nr_euk*** is used for the filtering step. Both are provided ready to use in this [tar.gz file](https://compgen.bio.ub.edu/datasets/CAPTVRED/REFSEQS.tar.gz).
-However, it can be changed to any other set of sequences. "nr_euk", "refseq" and "viruses" databases, which are provided ready to use in the [kaiju materials website](https://bioinformatics-centre.github.io/kaiju/downloads.html), or even a customized database can be set up (for more information see [Kaiju documentation](https://github.com/bioinformatics-centre/kaiju?tab=readme-ov-file#custom-database)).
 
+* Filtering step with Kaiju: From the nine databases available in \kaiju{} repositories \captvred{} analysis uses \textit{nr-euk}  by default since it comprises all taxonomic groups we are interested in discarding. However, the pipeline offers the flexibility to change the reference database or to use a customized one.
+     * To use another preset database parameter ```--raw_kaiju_db```. Available options are described in  [kaiju documentation](https://github.com/bioinformatics-centre/kaiju).
 
+*  Taxonomy assignment: The default database is RVDB, a curated and non-redundant viral database that includes all viral (and virus-like) entries hosted by eukaryotes. In the setup, this database is merged with genomic sequences of Viral Candidates to ensure that all are fully represented. After that, the full database is subsetted to obtain a smaller database including all the species taxonomically classified in the  families to which correspond the  Viral Candidates.
+RVDB is the default database in the pipeline. It can be changed with the parameter ```--refdb_link``` and providing the full link to download the database (it will be donwloaded by wget).
 
-If you with to use a different database for kaiju you need to download them and place (or link) the file in the reference sequences directory. The following options must be added to the command:
-* Changing the database used for the taxonomic classification step (viral assignments): 
-``` --params.kaijudb  "database_name" ``` (Please, note that kaiju is not the default approach for the taxonomic classification, if you with to use this algorithm you should enable ```--params.taxalg KAIJU``` as well.)
-
-* Modify the database used for the filtering step (dircarding non-viral sequences): 
-``` --params.kaijuDBRAW  "database_name" ```<br />
-
-__Blast Databases__ <br />
-
-If the filtering step is performed using blastn (default) or tblastx, the default database is ***RVDB***. 
-If you with to use a different database for either blastn or tblastx you need to download them and place (or link) the file in the reference sequences directory. When running the pipeline, the ``` --params.blast_ref_db_name "database_name" ``` option must be added to the command line. (If you are interested in using tblastx approach, please note that it is not the default approach for the taxonomic classification, if you with to use this algorithm you should enable ```--params.taxalg TBLASTX``` as well.)
-
-
-__Bbmap resources__<br />
-
-For the cleanning step performed with bbduk, the sequences of the adapters are required. Those can be linked directly to the bbmap location. However, in the [tar.gz file](https://compgen.bio.ub.edu/datasets/CAPTVRED/REFSEQS.tar.gz) provided the fasta file as well. If you prefer to use this file from any other directory you can use the command line option:  ``` --params.bbdukREF "dir/to/location" ```.
 
 
 # Running CAPTVRED
@@ -353,12 +322,6 @@ More information:
 * [Megahit documentation](https://github.com/voutcn/megahit)
 
 
-
-### Taxonomic classification: 
-
-#### Nucleotide-level classification:
-#### Protein-level classification:
-
 ### Reads alignment on reference sequences:
 
 The final set of contigs is aligned against the set of reference sequences (the
@@ -394,35 +357,6 @@ More information:
 **Mapped reads summary**
 **Coverage Figures**
 -->
-
-### Files in the repository:
-In the Nextflow repository for the CAPTVRED pipeline, one can find the following files:
-* projectvars.sh: &rarr; this file is not part of the nextflow environment, it is used to set the local directories before launching nextflow.
-* nextflow.config : &rarr; Environment variables. This file is the same for all the runs. This file is read by default by nextflow (it must be placed in the project directory or the base directory).
-* main.nf : &rarr; Controls workflow
-
-
-Nextflow Modules:
-* rawfq_clean.nf &rarr; BBDuk implementation for reads cleanning
-* seq_stats.nf &rarr; fastQC and  MultiQC implementation. These quality control programs are run at different points in the workflow to keep track of the data quality. 
-* reads_align.nf &rarr; Bowtie processes: create an index and run the alignment.
-* reads_assembly.nf &rarr; megahit, trinity and spades
-* contigs_align.nf &rarr; blast processes: prepare the database and run the alignment.
-* contigs_taxonomy.nf &rarr; Taxonomic analysis of assembled contigs using kaiju.
-
-
-
-
-# Dependencies:
-
-
-* FastQC v0.11.9
-* MultiQC v1.9
-* BBMap v.38.96
-* Kaiju v.1.9.0
-* Bowtie2 v.2.4.2
-* samtools v.1.11
-* htslib v.1.11-4
 
 
 <!--
