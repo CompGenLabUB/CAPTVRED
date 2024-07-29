@@ -38,8 +38,8 @@ or via nextflow pull command:
   ```
 
 ### Install Conda environment:<br />
-If mamba (or Conda) software is not installed, follow the installation instructions provided in the official documentation [MISSING LINK]().
-A ```environment.yaml``` file is provided to create the conda environment.
+If mamba (or Conda) software is not installed, follow the installation instructions provided in the [documentation](https://conda.io/projects/conda/en/latest/user-guide/install/index.html).
+A ```environment.yaml``` file is provided in this repository to create the conda environment.
 
 ```
 cd CAPTVRED
