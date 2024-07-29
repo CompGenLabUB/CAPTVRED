@@ -14,11 +14,16 @@ process bbduk_clean {
 	  val "${sampid}_pe2.fastq.gz", emit: outPE2
 	  val "${sampid}_sgl.fastq.gz", emit: outSGL
 
+
+
 	script:
-    logfl=sampid.toString().split("/")[-1]
+
+	logfl=sampid.toString().split("/")[-1]
 	logfl="${logdir}/${logfl}.bbduk_clean.log"
 	R1=params.R1
 	R2=params.R2
+
+	println "### bbduk_clean is running!"
   
 	"""
 	extension=""

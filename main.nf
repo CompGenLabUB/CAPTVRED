@@ -14,45 +14,50 @@ include { fill_html_report; make_summary_tbl } from './modules/sum_and_report.nf
 include { create_logd; create_filesys } from './modules/init.nf'
 
 
+
 def samplesMap = [:]
 SamplesDef = file(params.samp) // (samplestbl_file)
 SamplesDef.eachLine {
     line -> {
-        def sampl = line.split('\t')
+        def sp = line.split('\t')
         // ignore lines stating with "#"
-        if (!sampl[0].startsWith("#")) {
-            samplesMap.(sampl[0]) = (sampl[1])
+        if (!sp[0].startsWith("#")) {
+            samplesMap.(sp[0]) = (sp[1])
         }
     }
 }
 
 
 log.info """\
- =======================================
- V I R W A S T E - N F   P I P E L I N E
- =======================================
+ ========================================
+  C A P T V R E D - N F   P I P E L I N E
+ ========================================
  RUN     : ${params.runID}
  Samples : ${samplesMap}
  SysInfo : ${workflow.userName} SID=${workflow.sessionId} NCPUs=${params.NCPUS} GITcid=${workflow.commitId}
- =======================================
- Parameters 
- ---------------------------------------
-    Minimum Contigs Length : ${params.assemblyMINCONLEN}
- =======================================
+ ========================================
+
  """
 
 if ( params.help ) {
-    help = """main.nf: A description of your script and maybe some examples of how
-             |                to run the script
+    help = """main.nf: Start CAPTVRED pipeline for TES datasets sequences analyses.
              |Required arguments:
-             |  --input_file  Location of the input file file.
-             |                [default: ${params.input_file}]
+             |    --samp       Tabulated file with samples information.Templete named "samples_Definition_template.tbl" is provided with this repository.
+             |    --fastq_dir  Root directory for read fastq files.
+             |    --runID      Identification (name or code) of the run.
+             | 
              |
              |Optional arguments:
-             |  --use_thing   Do some optional process.
-             |                [default: ${params.use_thing}]
-             |  -w            The NextFlow work directory. Delete the directory once the process
-             |                is finished [default: ${workDir}]""".stripMargin()
+             |  
+             |    --help          Print this help message
+             |    --NCPUS         Maximum number of threads available for the demanding steps of the pipeline. [default:32]
+             |    --R1            Suffix for read 1 fastq files. [default: _R1_001]
+             |    --R2            Suffix for read 2 fastq files. [default: _R2_001]
+             |    --assembler     megahit(default) or metaspades
+             |    --taxalg        Taxonomy algorithm. blastn(default), tblastx or kaiju
+             |    --handle_contamination [default: false]. If true, fasta file must be provided.
+             |    --do_cov_figures       [default: true ]
+    """
     // Print the help with the stripped margin and exit
     println(help)
     exit(0)
@@ -68,7 +73,7 @@ workflow init_run() {
     println "# INIT: $samplesMap"
 
 
-    fsys.view() 
+   // fsys.view() 
     create_filesys(fsys, logfl)
 
   emit:
@@ -91,7 +96,7 @@ workflow fastqc_onrawseqs() {
     def spstr=ids.join(",")
     def regx="$params.fastq_dir/{$spstr}$params.rawfq_sfx"
     
-    println "### $spstr ###"
+    println "### SAMPS STRING IS:  $spstr ###"
     spschan=Channel.fromPath("$regx")
     fastQC(spschan, params.rawqc_dir, params.logs_dir) 
     sampsqual=fastQC.out.collect()
@@ -118,9 +123,11 @@ workflow reads_clean() {
          paths_list << newsamp
     }samps_idtranslate
     
-    Channel.from(paths_list).view()
+    def mychan=Channel.from(paths_list)
+    println "Total samples in mychan: ${paths_list.size()}"
+ //   mychan.view()
     if (params.trim_adapters == true ) {
-       bbduk_clean(x, Channel.from(paths_list), params.logs_dir, params.bbdukREF) 
+       bbduk_clean(x, mychan, params.logs_dir, params.bbdukREF) 
        cleansps=fastQC( bbduk_clean.out.mix(), params.rawqc_dir, params.logs_dir ).collect()
        multiQC( cleansps, params.reports_dir, params.logs_dir, "clean")
        // multiQC_clean( cleansps, params.reports_dir, params.logs_dir)
@@ -225,7 +232,7 @@ workflow reads_align_wf() {
     peout=bowtie_amplicons_alignment.out.LOG.mix(bowtie_amplicons_alignment.out.STS)
     sgout=bowtie_amplicons_alignment_sg.out.LOG.mix(bowtie_amplicons_alignment_sg.out.STS)
     samps_align=peout.mix(sgout).collect()
-    samps_align.view()
+   // samps_align.view()
     multiQC_bowtie( samps_align, params.reports_dir, params.logs_dir, "align")
   
   emit:
@@ -440,7 +447,7 @@ workflow () {
         KDB=Channel.from(params.kaijuDBRAW)
         CLNR=reads_clean.out.merge()
         to_kaiju=KDB.combine(CLNR).merge()
-        to_kaiju.view()
+     //   to_kaiju.view()
         reads_filter_nonviral(to_kaiju, params.kaijudir, params.ncbidir, params.taxdir)
  
 
@@ -550,7 +557,7 @@ workflow () {
         // 6.1. // Summary tables // //
         
         
-        sampdef="$params.ctvdir/$params.samp"
+        sampdef="$params.samp"
         make_summary_tbl(FIN, params.subasb_dir, params.reports_dir, params.bindir, sampdef)
         
         // 6.2. // Plot coverage by genome (reads and contigs)

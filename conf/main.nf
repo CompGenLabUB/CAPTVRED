@@ -8,6 +8,39 @@ include { get_taxonids; get_taxonids_rvdb; set_info_files} from './modules/db_ta
 include { taxonomizator; taxonomizator as taxonomizator_rvdb} from './modules/db_taxonomy.nf'
 include { get_rvdb; get_names_and_nodes;  get_accession2taxid } from './modules/update_files.nf' 
 
+log.info """\
+ =========================================
+    C A P T V R E D   -   S E T    U P
+ =========================================
+ SET NAME    : ${params.runID}
+ FASTA FILE  : ${samplesMap}
+ SysInfo     : ${workflow.userName} SID=${workflow.sessionId} NCPUs=${params.NCPUS} GITcid=${workflow.commitId}
+ =========================================
+ """
+
+if ( params.help ) {
+    help = """conf/main.nf: Set up the files for the captvred pipeline run.
+             |Required arguments:
+             |  --set_seqs  Gziped fasta file with genomic sequences of the species targeted in the TES.
+             |  --setname   Name of the set of targeted sequences.
+             |              [default: "targetset"]
+             |
+             |Optional arguments:
+             |    --rvdb_update    Force to download rvdb database (in the case it is already downloaded). Most recent version will be always downloaded.
+             |                      [default: false]
+             |    --merge_update   Force to repeat the merging process of reference database and viral candidates sequences (in the case it is already done).
+             |                      [default: false] Automatically set to "true" when --taxon_update = true.
+             |    --taxon_update   Force to download taxonomic classification files from ncbi (in the case it is already downloaded). Most recent version will be always downloaded.
+             |                      [default: false]  Automatically set to "true" when --rvdb_update = true or --taxon_update = true.
+             |    
+             |    Database customization:
+             |      [default: rvdb ]
+             |      --refdb_link  Database link for downloading desired database (it will be automatically downloaded trough wget)
+    """
+    // Print the help with the stripped margin and exit
+    println(help)
+    exit(0)
+}
 
 workflow check_files () {
    take:
@@ -141,47 +174,6 @@ workflow database_subset (){
       DS_OTH=O
 } 
 
-/*
-workflow linkfiles() {
-   take:
-      outfoi
-      outother
-      refseqs_rvdb
-      log_file
-   
-   main:
-      // families_subset_database=outfoi
-      // nonfamilies_subset_database=outother
-      stdrd_link(outfoi, "$refseqs_rvdb/foi_subset_db.fasta.gz", log_file)
-      stdrd_link_otfm(outother, "$refseqs_rvdb/other_subset_db.fasta.gz", log_file) 
-      stdrd_link_set(params.set_seqs, "$refseqs_rvdb/setseqs.fasta.gz", log_file) 
-
-      /*
-      if (new File(outfoi).exists()) {
-         stdrd_link(outfoi, "$refseqs_rvdb/foi_subset_db.fasta.gz", logfil )
-      } else {
-         error "Families subset fasta file not found in \"$refseqs_rvdb/foi_subset_db.fasta.gz\""
-      }
-
-      if (new File(outother).exists()) {  
-         stdrd_link(outother, "$refseqs_rvdb/other_subset_db.fasta.gz", logfil ) 
-      } else {
-            error "Other subset fasta file not found in \"$refseqs_rvdb/other_subset_db.fasta.gz\""
-      } */
-// } 
-
-/*
-workflow prepareblast (){
-    take:
-      db
-      logfl
-    main:
-      //For blast with kaiju:
-      db_for_kaiju(db, logfl)
-    
-    emit:
-      ""
-} */
 
 // // // // // // MAIN // // // // // //  
     
@@ -209,6 +201,9 @@ workflow {
         create_logf(refseqs)
         def log_file=create_logf.out
         check_files(rvdb_fa, merged_fa, foisubset)
+        
+
+        db_for_kaiju(params.raw_kaiju_db, log_file)
         
         if(params.rvdb_update==true) {
 
