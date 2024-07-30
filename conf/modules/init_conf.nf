@@ -29,8 +29,8 @@ process db_for_kaiju () {
         def now = new Date().format('dd-MM-yyyy')
 
         """ 
-        echo "### Downloading $dbname for kaiju : $now ###" > $logfl
-        kaiju-makedb -t $params.NCPUS -s $dbname >>  $logfl 2>&1
+        echo "### Downloading $dbname for kaiju : $now ###" >> $logfl
+        kaiju-makedb -s $dbname >>  $logfl 2>&1
         """
 }
 
@@ -47,13 +47,8 @@ process stdrd_link () {   // Create a link with stable name so it can be called 
         val dest_link  //Full path
     
     script:
-      println "   > Linking $origin_file to $dest_link :)"
       """
-         if [ -f $origin_file ]; then
-            ln -fs $origin_file  $dest_link >> $logfl 2>&1
-            echo "    ... link done!" >> $logfl;
-         else
-            echo "## ERROR!! $origin_file does not exist!!";
-         fi;
+        ln -fs $origin_file  $dest_link >> $logfl 2>&1
+        echo "    ... link done!" >> $logfl;
       """
 }

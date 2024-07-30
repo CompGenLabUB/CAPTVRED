@@ -12,9 +12,9 @@ log.info """\
  =========================================
     C A P T V R E D   -   S E T    U P
  =========================================
- SET NAME    : ${params.runID}
- FASTA FILE  : ${samplesMap}
- SysInfo     : ${workflow.userName} SID=${workflow.sessionId} NCPUs=${params.NCPUS} GITcid=${workflow.commitId}
+ SET NAME    : ${params.setname}
+ SEQS FASTA  : ${params.set_seqs}
+ SysInfo     : ${workflow.userName} SID=${workflow.sessionId} GITcid=${workflow.commitId}
  =========================================
  """
 
@@ -26,16 +26,22 @@ if ( params.help ) {
              |              [default: "targetset"]
              |
              |Optional arguments:
-             |    --rvdb_update    Force to download rvdb database (in the case it is already downloaded). Most recent version will be always downloaded.
+             |    --db_update      Force to download rvdb database (in the case it is already downloaded). 
+             |                     Most recent version will be always downloaded.
              |                      [default: false]
-             |    --merge_update   Force to repeat the merging process of reference database and viral candidates sequences (in the case it is already done).
+             |    --merge_update   Force to repeat the merge of reference database and viral candidates sequences if it was already done.
              |                      [default: false] Automatically set to "true" when --taxon_update = true.
-             |    --taxon_update   Force to download taxonomic classification files from ncbi (in the case it is already downloaded). Most recent version will be always downloaded.
-             |                      [default: false]  Automatically set to "true" when --rvdb_update = true or --taxon_update = true.
+             |    --taxon_update   Force to download taxonomic classification files from ncbi (in the case it is already downloaded). 
+             |                     Most recent version will be always downloaded.
+             |                      [default: false]  Automatically set to "true" when --db_update = true or --taxon_update = true.
              |    
-             |    Database customization:
-             |      [default: rvdb ]
-             |      --refdb_link  Database link for downloading desired database (it will be automatically downloaded trough wget)
+             |Database customization:
+             |      
+             |      --refdb_link  Database link for downloading desired database for blast (it will be automatically downloaded trough wget). 
+             |                      [default: rvdb ]
+             |      --kaiju_db    Database(s) to be downloaded for kaiju run. To download multiple dbs use coma separated string.  All kaiju preset databases are accepted.
+             |                      [default: nr_euk ] 
+             |                    
     """
     // Print the help with the stripped margin and exit
     println(help)
@@ -47,61 +53,92 @@ workflow check_files () {
       database
       merged
       subset
+      
    
    main:
 
-      if (params.dbsplit_update==false) {
-         if(!new File(subset).exists()){
-            params.dbsplit_update=true
-            }
+      def do_dbsplit
+      def do_merge 
+      def do_dbdownl
+      if( new File(subset).exists()){
+          if (params.dbsplit_update==true) {
+            do_dbsplit=true
+          }else{
+            do_dbsplit=false
+          }
+      } else {
+         do_dbsplit=true
       }
 
-      if (params.merge_update==false) {
-         if (!new File(merged).exists()){
-            params.merge_update=true
-            params.dbsplit_update=true
-            }
-      }
-      
-      if (params.rvdb_update==false) {
-         if (!new File(database).exists()){
-            params.rvdb_update=true
-            params.merge_update=true
-            params.dbsplit_update=true
-            }
+
+      if( new File(merged).exists()){
+          if (params.merge_update==true) {
+            do_merge=true
+          }else{
+            do_merge=false
+          }
+      } else {
+         do_merge=true
       }
 
-    println "# RVDB  upd  : $params.rvdb_update"
-    println "# Merge upd  : $params.merge_update"
-    println "# Split upd  : $params.dbsplit_update"
+      if( new File(database).exists()){
+          if (params.db_update==true) {
+            do_dbdownl=true
+          }else{
+            do_dbdownl=false
+          }
+      } else {
+         do_dbdownl=true
+      }
+  
+      if (do_dbdownl==true){
+            do_merge=true
+      }
+      if (do_merge==true){
+            do_dbsplit=true
+      }
+
+    println "##      FILES CHECKED!     ##"
+    println "# Updating database   : $do_dbdownl"
+    println "# Mergeing database   : $do_merge"
+    println "# Subsetting database : $do_dbsplit"
 
    emit:
-      "FILES CHECKED!"
+      DWL=do_dbdownl
+      MRG=do_merge
+      SPT=do_dbsplit
+
 }
 
 workflow database (){
    
    take:
+      cond
       dir
       link
       name
       logf
-      check
+      fasta
+
 
    main:
-
-   check.view()
-   get_rvdb(dir, link, name, logf)
+   if (cond){
+      get_rvdb(dir, link, name, logf)
+      outfl=get_rvdb.out
+   } else {
+      outfl=fasta
+   }
    
 
    emit:
-      get_rvdb.out
+      outfl
 
 }
 
 workflow mergefasta () {
 
    take:
+      cond
       refseqs_ncbi
       refseqs_rvdb
       db_fa
@@ -111,20 +148,28 @@ workflow mergefasta () {
       logf
 
    main:
-      get_names_and_nodes(refseqs_ncbi, link, logf)
-      chek_setref_ids(refseqs_rvdb, db_fa, set_fa, params.setname)
-      merge_rvdb_setref(merged_fa, db_fa, params.db_name, chek_setref_ids.out, logf )
-   
+
+      if (cond){
+         get_names_and_nodes(refseqs_ncbi, link, logf)
+         chek_setref_ids(refseqs_rvdb, db_fa, set_fa, params.setname)
+         merge_rvdb_setref(merged_fa, db_fa, params.db_name, chek_setref_ids.out, logf )
+         out_m=merge_rvdb_setref.out
+         out_ncbi=get_names_and_nodes.out
+      } else {
+         out_m=refseqs_ncbi
+         out_ncbi=merged_fa
+      }
 
    emit:
-      MERGED=merge_rvdb_setref.out
-      NCBID=get_names_and_nodes.out
+      MERGED=out_m
+      NCBID=out_ncbi
 
 }
 
 
 workflow database_subset (){
    take:
+      cond
       rvdbdir
       ncbidir
       bindir
@@ -140,8 +185,8 @@ workflow database_subset (){
    main:
       
       stdrd_link_set(set_fasta, "$rvdbdir/setseqs.fasta.gz", logf)
-      if (params.dbsplit_update==true) {
-         //namedb=fulldb_fasta.replaceAll("fasta.gz|fa.gz", "")
+      if (cond) {
+
          get_accession2taxid(ncbidir, link, logf) 
 
          get_taxonids(rvdbdir, set_fasta, params.setname, get_accession2taxid.out)
@@ -197,61 +242,51 @@ workflow {
     def foisubset    = "${refseqs_rvdb}/rvdb+${params.setname}_foi_subset.fasta.gz"
     def othersubset  = "${refseqs_rvdb}/rvdb+${params.setname}_other_subset.fasta.gz"
     
-     // create_logf("$workflow.projectDir/references")
+        check_files(rvdb_fa, merged_fa, foisubset)
+
         create_logf(refseqs)
         def log_file=create_logf.out
-        check_files(rvdb_fa, merged_fa, foisubset)
-        
 
-        db_for_kaiju(params.raw_kaiju_db, log_file)
-        
-        if(params.rvdb_update==true) {
-
-            database( refseqs_rvdb, 
+        database( check_files.out.DWL,
+                      refseqs_rvdb, 
                       params.rvdb_link, 
                       params.db_name, 
                       log_file, 
-                      check_files.out
+                      rvdb_fa
                     )
-            dbfasta=database.out
 
-        }else{
-
-            dbfasta=rvdb_fa
-
-        }
-        
-        if (params.merge_update==true) {
-            mergefasta( refseqs_ncbi, 
+         mergefasta( check_files.out.MRG,
+                        refseqs_ncbi, 
                         refseqs_rvdb, 
-                        dbfasta, 
+                        database.out,
                         params.set_seqs, 
                         merged_fa, 
                         params.taxon_link, 
                         create_logf.out
                      )
 
-            ncbidir=mergefasta.out.NCBID
-            mergfa=mergefasta.out.MERGED
 
-        }else{
 
-            ncbidir=refseqs_ncbi
-            mergfa=merged_fa
-        
-        }
 
-      database_subset( refseqs_rvdb, 
-                       ncbidir, 
-                       bindir, 
-                       refseqs_gff,
-                       params.set_seqs, 
-                       mergfa,
-                       foisubset,
-                       othersubset,
-                       params.acc2tax_link,
-                       create_logf.out
+         database_subset( check_files.out.SPT,
+                          refseqs_rvdb, 
+                          mergefasta.out.NCBID, 
+                          bindir, 
+                          refseqs_gff,
+                          params.set_seqs, 
+                          mergefasta.out.MERGED,
+                          foisubset,
+                          othersubset,
+                          params.acc2tax_link,
+                          create_logf.out
                      )
+
+         def kaidatabases=Channel.from(params.kaiju_db)
+           .splitCsv()
+           .flatten()
+           
+
+     //    db_for_kaiju(kaidatabases, log_file)
 
 
 }

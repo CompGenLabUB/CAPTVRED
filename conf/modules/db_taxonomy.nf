@@ -1,8 +1,3 @@
-// zegrep '^>' refseqs/rvdb_nt/C-RVDBvCurrent.fasta.gz | gawk -vFS="|" '{print $3}' > refseqs/rvdb_nt/C-RVDBvCurrent.ids
-//efetch -db nuccore -input refseqs/rvdb_nt/C-RVDBvCurrent.ids -format gb > refseqs/rvdb_nt/C-RVDBvCurrent.gb
-
-// gawk -vOFS="\t" '$1 ~ /^VERSION$/ { ID=$2 } match($0, /^ *\/db_xref="taxon:(.*)" *$/, a) { print ID, a[1] }' refseqs/rvdb_nt/C-RVDBvCurrent.gb > refseqs/rvdb_nt/C-RVDB_genebank_to_taxon.ids
-
 
 process get_taxonids () {
     input:
@@ -18,7 +13,7 @@ process get_taxonids () {
     script:
         idsfl="${odir}/${name}_genomes.ids"
         gbfl="${odir}/${name}_genomes.gb"
-        // missids="${odir}/${name}_missingtax.txt"
+       
         txid_fl="${odir}/${name}_genebank_to_taxon.gb"
 
         """
@@ -80,8 +75,6 @@ process get_taxonids_rvdb () {
         gbfl=fasta_fl.replaceAll(".fasta.gz","_missingtax_genomes.gb")
         missids=fasta_fl.replaceAll(".fasta.gz", "_missingtax.txt")
         txid_fl=fasta_fl.replaceAll(".fasta.gz","_genebank_to_taxon.gb")
-
-        println "  > $fasta_fl \n> $idsfl \n> $gbfl \n> $missids \n> $txid_fl :)"
         
         """
         zegrep '^>' $fasta_fl | awk -vFS="|" '{print \$3}' -  > $idsfl; 

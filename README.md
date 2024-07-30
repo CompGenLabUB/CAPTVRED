@@ -10,7 +10,8 @@ Before running the pipeline, the file system must be prepared as follows:
 ##### A) Viral Candidates fasta:</u> <br />
 A fasta file containing the sequences of viral candidates. It  is assumed that capture probes were designed based on this set of genomic sequences, however, any set of sequences of interest will be appropriate to include. It must be a gzipped fasta. The sequence headers must contain **the identifier code followed by a space**, after the space any other information can be added if desired.<br />
 <br />
- ##### B) Samples description tabular file:</u><br />
+
+##### B) Samples description tabular file:</u><br />
 A template for this tabular file is provided (samples_definition_template.sh). It must be completed entering one sample per row. Additional metadata fields can be added if appropriate.<br />
 
 <details>
@@ -39,7 +40,7 @@ or via nextflow pull command:
 
 ### Install Conda environment:<br />
 If mamba (or Conda) software is not installed, follow the installation instructions provided in the [documentation](https://conda.io/projects/conda/en/latest/user-guide/install/index.html).
-A ```environment.yaml``` file is provided in this repository to create the conda environment.
+A ```environment.yml``` file is provided in this repository to create the conda environment.
 
 ```
 cd CAPTVRED
@@ -90,8 +91,8 @@ cd MYPROJECT
 ### Set Up <br />
 
 ```{.sh}
-cd MYPROJECT
-nextflow conf/main.nf              \
+cd CAPTVRED/conf
+nextflow main.nf              \
          --set_seqs /path/to/Viral_candidates_fasta.gz  \
          --setname "MY_VIRAL_CANDIDATES"
 ```
@@ -104,11 +105,11 @@ nextflow conf/main.nf              \
   <br />
  
 This module prepares the file setup and databases to run the pipeline afterward. In the case of databases, the main steps are:  <br />
-1. __Database download__: Viral reference database ([RVDB](https://rvdb.dbi.udel.edu/)) most recent version is downloaded. If the database is already downloaded in the desired location it will not be downloaded again. This step can be forced by using the flag:  ```--rvdb_update```. <br />
+1. __Database download__: Viral reference database ([RVDB](https://rvdb.dbi.udel.edu/)) most recent version is downloaded. If the database is already downloaded in the desired location it will not be downloaded again. This step can be forced by using the flag:  ```--db_update```. <br />
 2.  __Merge database with Viral Candidate sequences__: In this step, sequences from the viral candidates set that are not present in the reference database are included. If the merge has been done previously it will not be repeated. The merge can be forced again by using the flag ```--merge_update```.<br />
 3. __Split datbase__: The full database is split into a subset containing only the sequences classified in the families of interest. Another subset containing the rest of the species is created at the same time. If the subset is already created it will not be created again. It can be forced by using the flag ```--dbsplit_update ```.<br />
 
-Note that by redoing any of the described flags, all the downstream steps will be repeated as well. Thus, by activating the flag ```--rvdb_update```, ```--merge_update``` is automatically activated; and by activating ```--merge_update```, ```--dbsplit_update ``` is activated as well.
+Note that by redoing any of the described flags, all the downstream steps will be repeated as well. Thus, by activating the flag ```--db_update```, ```--merge_update``` is automatically activated; and by activating ```--merge_update```, ```--dbsplit_update ``` is activated as well.
 If the run is interrupted for any reason, remember that the ```-resume``` nextflow option will restart the pipeline from where it left off in the previous execution.
 
 </details>
@@ -116,11 +117,11 @@ If the run is interrupted for any reason, remember that the ```-resume``` nextfl
 # Run CAPTVRED:
 
 ```{.sh}
-nextflow $NXFDIR/main.nf
-    --samp /path/to/samples_definition.tbl       \
-    --fastq_dir /path/to/fastq/files/directory   \
-    --runID "RUN_ID"
-     -with-report $RPTDR/Nextflow_execution_report.html
+cd CAPTVRED
+nextflow main.nf
+          --samp /path/to/samples_definition.tbl       \
+          --fastq_dir /path/to/fastq/files/directory   \
+          --runID "RUN_ID"
 ```
 
 ### Optional parameters of the CAPTVRED pipeline:
