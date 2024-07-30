@@ -44,7 +44,7 @@ A ```environment.yml``` file is provided in this repository to create the conda 
 
 ```
 cd CAPTVRED
-mamba env create -f environment.yaml
+mamba env create -f environment.yml
 mamba activate captvred
 ```
 <details>
