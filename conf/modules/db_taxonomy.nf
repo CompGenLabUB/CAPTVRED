@@ -41,9 +41,10 @@ process set_info_files () {
         val outfl
 
     script:
-        outfl=taxfl.replaceAll(".tax.gz","_info_summary.tsv")
         coordgenomes="$gffdir/refseqs_coordinates.tsv"
+        outfl=taxfl.replaceAll(".tax.gz","_info_summary.tsv")
         """ 
+        mkdir -vp $gffdir;
         $bindir/bp_genbank2gff3 $gbfl -o $gffdir  --split;
                
         gawk -vOFS="\t"  '{

@@ -34,6 +34,7 @@ dependencies:
   - nextflow=22.04
   - perl
   - perl-bioperl
+  - perl-yaml
   - python=3.9.2
   - biopython
   - pandas

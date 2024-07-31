@@ -286,7 +286,7 @@ workflow {
            .flatten()
            
 
-     //    db_for_kaiju(kaidatabases, log_file)
+         db_for_kaiju(kaidatabases, log_file)
 
 
 }
