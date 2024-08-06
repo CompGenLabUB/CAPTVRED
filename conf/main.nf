@@ -1,6 +1,6 @@
 #! /usr/bin/env nextflow
 
-include { db_for_kaiju; create_logf; stdrd_link } from './modules/init_conf.nf'
+include { db_for_kaiju_pred; create_logf; stdrd_link } from './modules/init_conf.nf'
 include { stdrd_link as stdrd_link_otfm; stdrd_link as stdrd_link_set} from './modules/init_conf.nf'
 include { stdrd_link as stdrd_link_tax; stdrd_link as stdrd_link_tax_set; stdrd_link as stdrd_link_info} from './modules/init_conf.nf'
 include { merge_rvdb_setref; chek_setref_ids; filter_FOI } from './modules/filter_rvdb.nf'
@@ -39,8 +39,8 @@ if ( params.help ) {
              |      
              |      --refdb_link  Database link for downloading desired database for blast (it will be automatically downloaded trough wget). 
              |                      [default: rvdb ]
-             |      --kaiju_db    Database(s) to be downloaded for kaiju run. To download multiple dbs use coma separated string.  All kaiju preset databases are accepted.
-             |                      [default: nr_euk ] 
+             |      --kaiju_db    Database(s) to be downloaded for kaiju run. To download multiple dbs use coma separated string. 
+             |                      [options: nr_euk, refseqs, viruses, rvdb ]][default: nr_euk ] 
              |                    
     """
     // Print the help with the stripped margin and exit
@@ -219,6 +219,31 @@ workflow database_subset (){
       DS_OTH=O
 } 
 
+workflow download_kaijudbs () {
+   take:
+      odir
+      datab
+      log_file
+
+   main:
+      println "DB is: $datab"
+      println "Link is: $params.K_nr_euk_link"
+      def link = ":o"
+      if (val datab == "nr_euk"){
+         link = params.K_nr_euk_link
+      } else if (datab == "refseq") {
+         link = params.K_refseq_link
+      } else if (datab == "viruses") {
+         link = params.K_viruses_link
+      } else if (datab == "rvdb") {
+         link = params.K_rvdb_link
+      } else {
+         println "WARNING!! Unknown kaiju database! \n Available options are: nr_euk, refseqs, viruses, rvdb"
+      }
+     println "Link is: $link" 
+     db_for_kaiju_pred( odir, link, datab ,log_file )
+
+}
 
 // // // // // // MAIN // // // // // //  
     
@@ -230,6 +255,7 @@ workflow database_subset (){
 
 workflow {
     def refseqs      = "${workflow.projectDir}/references"
+    def refseqs_kai  = "$refseqs/db/kaiju"
     def refseqs_rvdb = "$refseqs/db/${params.refdb_name}"
     def refseqs_gff  = "$refseqs_rvdb/gff_refgenomes"
     def refseqs_ncbi = "$refseqs/db/ncbi"
@@ -265,9 +291,6 @@ workflow {
                         create_logf.out
                      )
 
-
-
-
          database_subset( check_files.out.SPT,
                           refseqs_rvdb, 
                           mergefasta.out.NCBID, 
@@ -281,12 +304,17 @@ workflow {
                           create_logf.out
                      )
 
-         def kaidatabases=Channel.from(params.kaiju_db)
-           .splitCsv()
-           .flatten()
-           
-
-         db_for_kaiju(kaidatabases, log_file)
-
-
+         if (params.customdb) {
+            db_for_kaiju(params.dbtomake, log_file)
+            println "AAAAAA"
+         } else {
+            println "EEEEEE"
+            def kaidatabases=Channel.from(params.kaiju_db)
+               .splitCsv()
+               .flatten()
+            println "$refseqs_kai"
+           // download_kaijudbs(refseqs_kai, Channel.from(params.kaiju_db).splitCsv().flatten() , log_file )
+           // download_kaijudbs(refseqs_kai, kaidatabases, log_file )
+         db_for_kaiju_pred(refseqs_kai, kaidatabases, log_file )
+         }
 }
