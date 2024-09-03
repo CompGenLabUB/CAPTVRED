@@ -8,15 +8,7 @@ include { get_taxonids; get_taxonids_rvdb; set_info_files} from './modules/db_ta
 include { taxonomizator; taxonomizator as taxonomizator_rvdb} from './modules/db_taxonomy.nf'
 include { get_rvdb; get_names_and_nodes;  get_accession2taxid } from './modules/update_files.nf' 
 
-log.info """\
- =========================================
-    C A P T V R E D   -   S E T    U P
- =========================================
- SET NAME    : ${params.runID}
- FASTA FILE  : ${samplesMap}
- SysInfo     : ${workflow.userName} SID=${workflow.sessionId} NCPUs=${params.NCPUS} GITcid=${workflow.commitId}
- =========================================
- """
+
 
 if ( params.help ) {
     help = """conf/main.nf: Set up the files for the captvred pipeline run.
