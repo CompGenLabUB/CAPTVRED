@@ -1,4 +1,3 @@
-//-a $params.rvdb_update -eq "false"
 process merge_rvdb_setref () {
 
     input:
@@ -12,22 +11,10 @@ process merge_rvdb_setref () {
         val merged_fa  //Full path
     
     script:
-        //  merged_fa=rvdb_fa.toString().replaceAll(".fasta.gz|.fasta|.fa.gz|.fa", "+set.fasta.gz")
-       
-      //merged_fa="${odir}/rvdb+${params.setname}.fasta.gz"
+
       """
       echo "   > Mergeing $dbname + $params.setname" >> $logfl;
-      if  $params.merge_update; then
-          zcat $rvdb_fa $set_fa | gzip  -  > $merged_fa;
-          echo "    ... done!";
-      else
-          if [  -f $merged_fa  ]; then
-              echo "    ... \"$dbname\" + \"$params.setname\" is already merged." >> $logfl;
-          else
-              zcat $rvdb_fa $set_fa | gzip  -  > $merged_fa;
-              echo "    ... done!";
-          fi;
-      fi;
+      zcat $rvdb_fa $set_fa | gzip  -  > $merged_fa;
       """
   
 }
@@ -93,15 +80,15 @@ process filter_FOI () {  //families of interest
         zegrep -o  "\\sfamily:[A-Za-z]*:[0-9]*"  $set_taxfl |\
                 sort                                        |\
                 uniq > $foi_lst;
-        ## echo otherID
+
         #Split fasta 
         $bin/filter_by_family_taxon.py             \
                 --fasta_file     $db_fa            \
                 --fam_list_file  $foi_lst          \
                 --fulltaxon_file $db_tax           \
                 --FOI_seqs       $foi_subset_fa    \
-                --OTHER_seqs     $other_subset_fa # \
-            # 2> $logfile;
+                --OTHER_seqs     $other_subset_fa  \
+             2> $logfile;
 
         """
 

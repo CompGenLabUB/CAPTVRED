@@ -16,17 +16,7 @@ process get_rvdb () {
         fullpath="${odir}/${dbname}"
 
         """
-        mkdir -vp "${odir}";
-        echo "   > Downloading $dbname database" >> $logfl;
-        if $params.rvdb_update; then 
-            wget $full_link -O ${fullpath}  2>> $logfl;
-        else
-            if [ -f $fullpath ]; then
-                echo "    ... \"$dbname\" is already downloaded." >> $logfl;
-            else 
-                wget $full_link -O ${fullpath}  2>> $logfl;
-            fi;
-        fi;
+        wget $full_link -O ${fullpath}  2>> $logfl;
         """
 }
 
@@ -42,23 +32,13 @@ process get_names_and_nodes () {
         val odir
 
     script:
+        
         flname=link.toString().split("/")[-1]
         fullpath="${odir}/${flname}"
 
         """
-        mkdir -vp "${odir}";
-        echo "   > Downloading $flname database" >> $logfl;
-        if $params.taxon_update; then 
-            wget $link -O  $fullpath  2>> $logfl;
-            tar -xzvf $fullpath  2>> $logfl;
-        else 
-            if [ -f $fullpath ]; then
-                echo "    ... \"$flname\" is already downloaded." >> $logfl;
-            else 
-                wget $link -O $fullpath  2>> $logfl;
-                tar -xzvf $fullpath  2>> $logfl;
-            fi;
-        fi;
+        wget $link -O  $fullpath  2>> $logfl;
+        tar -xzvf $fullpath  -C ${odir} 2>> $logfl;
         """
 
 }
@@ -79,17 +59,7 @@ process get_accession2taxid () {
         fullpath="${odir}/${flname}"
 
         """
-        mkdir -vp "${odir}";
-        echo "   > Downloading $flname database" >> $logfl;
-        if $params.taxon_update; then 
-            wget $link -O  $fullpath  2>> $logfl;
-        else 
-            if [ -f $fullpath ]; then
-                echo "    ... \"$flname\" is already downloaded." >> $logfl;
-            else 
-                wget $link -O $fullpath  2>> $logfl;
-            fi;
-        fi;
+        wget $link -O  $fullpath  2>> $logfl;
         """
 
 }
