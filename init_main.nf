@@ -1,12 +1,12 @@
 #! /usr/bin/env nextflow
 
-include { db_for_kaiju_pred; create_logf; stdrd_link } from './modules/init_conf.nf'
-include { stdrd_link as stdrd_link_otfm; stdrd_link as stdrd_link_set} from './modules/init_conf.nf'
-include { stdrd_link as stdrd_link_tax; stdrd_link as stdrd_link_tax_set; stdrd_link as stdrd_link_info} from './modules/init_conf.nf'
-include { merge_rvdb_setref; chek_setref_ids; filter_FOI } from './modules/filter_rvdb.nf'
-include { get_taxonids; get_taxonids_rvdb; set_info_files} from './modules/db_taxonomy.nf'
-include { taxonomizator; taxonomizator as taxonomizator_rvdb} from './modules/db_taxonomy.nf'
-include { get_rvdb; get_names_and_nodes;  get_accession2taxid } from './modules/update_files.nf' 
+include { db_for_kaiju_pred; create_logf; stdrd_link } from './modules/init/init_conf.nf'
+include { stdrd_link as stdrd_link_otfm; stdrd_link as stdrd_link_set} from './modules/init/init_conf.nf'
+include { stdrd_link as stdrd_link_tax; stdrd_link as stdrd_link_tax_set; stdrd_link as stdrd_link_info} from './modules/init/init_conf.nf'
+include { merge_rvdb_setref; chek_setref_ids; filter_FOI } from './modules/init/filter_rvdb.nf'
+include { get_taxonids; get_taxonids_rvdb; set_info_files} from './modules/init/db_taxonomy.nf'
+include { taxonomizator; taxonomizator as taxonomizator_rvdb} from './modules/init/db_taxonomy.nf'
+include { get_rvdb; get_names_and_nodes;  get_accession2taxid } from './modules/init/update_files.nf' 
 
 
 if ( params.help ) {

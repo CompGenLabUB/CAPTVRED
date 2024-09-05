@@ -34,6 +34,7 @@ Pipeline can be downloaded via github clone repository:
    git clone https://github.com/CompGenLabUB/CAPTVRED.git
    ```
 or via nextflow pull command:
+
   ```{.sh}
   nextflow pull CompGenLabUB/CAPTVRED
   ```
@@ -91,8 +92,8 @@ cd MYPROJECT
 ### Set Up <br />
 
 ```{.sh}
-cd CAPTVRED/conf
-nextflow main.nf              \
+nextflow -C init_nextflow.config                        \
+         run  init_main.nf                              \
          --set_seqs /path/to/Viral_candidates_fasta.gz  \
          --setname "MY_VIRAL_CANDIDATES"
 ```
