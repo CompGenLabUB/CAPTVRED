@@ -39,17 +39,17 @@ or via nextflow pull command:
   nextflow pull CompGenLabUB/CAPTVRED
   ```
 
-### Install Conda environment:<br />
-If mamba (or Conda) software is not installed, follow the installation instructions provided in the [documentation](https://conda.io/projects/conda/en/latest/user-guide/install/index.html).
-A ```environment.yml``` file is provided in this repository to create the conda environment.
+### Conda environment:<br />
 
-```
-cd CAPTVRED
-mamba env create -f environment.yml
-mamba activate captvred
-```
+When running the pipeline, Nextflow will automatically create and activate a conda environment containing all programs and features required. 
+If Conda software is not installed, follow the installation instructions provided in the [documentation](https://conda.io/projects/conda/en/latest/user-guide/install/index.html). 
+
+> [!IMPORTANT]  
+> Conda can be considerably slow in resolving the package dependencies. Make sure to install 22.11 or later version of conda and to activate the libmamba package as solver ( ``` conda config --set solver libmamba ```) to resolve the environment notably faster. For more information see: https://www.anaconda.com/blog/a-faster-conda-for-a-growing-community
+
+
 <details>
- <summary>Conda environment details</summary>
+ <summary>Details of the provided conda environment</summary>
  The main programs installed in conda environment are described here:
  
 | Program                      | Version       | Channel           |
@@ -153,19 +153,22 @@ For each sample three tables are generated for viral assignations:
 | k127_111  | B   | 2081        | 2081        | 100.000          | KJ633807.1  | NA          | 2962         | 11320     | Influenza_A_virus                         | Orthomyxoviridae  |
 | k127_74   | B   | 425         | 425         | 100.000          | KJ633811.1  | NA          | 275          | 11320     
 
+
 <details>
  <summary>Fields description:</summary>
- * **READ_ID**: Uniq identifier for each read/contig.
- * **TAG**: B for blastn, T for tblastx and K for kaiju.
- * **READ_LENGTH**: Read or contig length in bp.
- * **BESTHIT_LEN**: Length of the best hit.
- * **BESTHIT_COVERAGE**: Coverage of the best hit.
- * **REFSEQ_ID**: Assignation specie sequence id.
- * **KAIJU_SCORE**: Score reported by kaiju NA if blastn (default) option is running.
- * **NREADS_MAPED**: Number of raw reads mapped to this seqid. 
- * **TAXONID**: Sequence taxon id.
- * **SPECIES**: Species name.
- * **FAMILY**: Species family taxonomic classification.
+  <small>
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>READ_ID</strong>: Uniq identifier for each read/contig. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>TAG</strong>: B for blastn, T for tblastx and K for kaiju. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>READ_LENGTH</strong>: Read or contig length in bp. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>BESTHIT_LEN</strong>: Length of the best hit. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>BESTHIT_COVERAGE</strong>: Coverage of the best hit. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>REFSEQ_ID</strong>: Assignation specie sequence id. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>KAIJU_SCORE</strong>: Score reported by kaiju NA if blastn (default) option is running. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>NREADS_MAPED</strong>: Number of raw reads mapped to this seqid.  <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>TAXONID</strong>: Sequence taxon id.<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>SPECIES</strong>: Species name. <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&#8594; <strong>FAMILY</strong>: Species family taxonomic classification. <br />
+  </small>
 </details>
   
 * Sequence level:
@@ -194,3 +197,14 @@ For each sample three tables are generated for viral assignations:
 # Data:
 * The data for the test set is provided in the following [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz). The folder contains 15 test samples (3 real metagenomics samples and 12 synthetic samples), and the script used for data generation.
 * The data used for the assessment of the PANDEVIR capture panel are available in the following  [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.tar.gz). The folder contains the raw reads for all the samples and a tabular file with the samples name relation.
+
+> [!NOTE]  
+> The linked files are quite big. We recommend to download them using ```wget```command:
+> ```
+>wget https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz
+>```
+> and 
+>```
+>wget https://compgen.bio.ub.edu/datasets/CAPTVRED/>PANDEVIR_assess_testset.tar.gz
+>```
+
