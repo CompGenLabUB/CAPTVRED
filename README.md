@@ -195,16 +195,21 @@ For each sample three tables are generated for viral assignations:
 
 
 # Data:
-* The data for the test set is provided in the following [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz). The folder contains 15 test samples (3 real metagenomics samples and 12 synthetic samples), and the script used for data generation.
-* The data used for the assessment of the PANDEVIR capture panel are available in the following  [link](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.tar.gz). The folder contains the raw reads for all the samples and a tabular file with the samples name relation.
 
-> [!NOTE]  
-> The linked files are quite big. We recommend to download them using ```wget```command:
-> ```
->wget https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz
->```
-> and 
->```
->wget https://compgen.bio.ub.edu/datasets/CAPTVRED/>PANDEVIR_assess_testset.tar.gz
->```
+The data for the test set is provided from `CAPTVRED_testset.tar.gz` file (direct link from table below). The folder contains 15 test samples (3 real metagenomics samples and 12 synthetic samples), and the script used for data generation.
+
+The data used for the assessment of the PANDEVIR capture panel is available from `PANDEVIR_assess_testset.tar.gz` file (direct link from table below). The folder contains the raw reads for all the samples and a tabular file with the samples name relation.
+
+| FILE                                                                                                          | Size | MD5SUM                                                                                                       |
+|---------------------------------------------------------------------------------------------------------------|------|--------------------------------------------------------------------------------------------------------------|
+| [CAPTVRED_testset.tar.gz](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz)               |  13G | [1c8a0ca35740e4e705a85455fd8225b8](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.md5)        |
+| [PANDEVIR_assess_testset.tar.gz](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.tar.gz) |  93G | [ce96f699e8d9fc08cf2169b3fad281c5](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.md5) |
+
+The linked files are quite big, thus we recommend to download them using `wget` command as shown in the following example, or any other download specialized tool (like, for instance, `curl` or `FileZilla`).
+```
+wget https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz
+wget https://compgen.bio.ub.edu/datasets/CAPTVRED/>PANDEVIR_assess_testset.tar.gz
+```
+We also provide the corresponding `md5sum` checksums to ensure that those files were properly downloaded from the repository.
+
 
