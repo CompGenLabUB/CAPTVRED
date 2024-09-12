@@ -202,8 +202,8 @@ The data used for the assessment of the PANDEVIR capture panel is available from
 
 | FILE                                                                                                          | Size | MD5SUM                                                                                                       |
 |---------------------------------------------------------------------------------------------------------------|------|--------------------------------------------------------------------------------------------------------------|
-| [CAPTVRED_testset.tar.gz](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz)               |  13G | [1c8a0ca35740e4e705a85455fd8225b8](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.md5)        |
-| [PANDEVIR_assess_testset.tar.gz](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.tar.gz) |  93G | [ce96f699e8d9fc08cf2169b3fad281c5](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.md5) |
+| [`CAPTVRED_testset.tar.gz`](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz)               |  `13G` | [`1c8a0ca35740e4e705a85455fd8225b8`](https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.md5)        |
+| [`PANDEVIR_assess_testset.tar.gz`](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.tar.gz) |  `93G` | [`ce96f699e8d9fc08cf2169b3fad281c5`](https://compgen.bio.ub.edu/datasets/CAPTVRED/PANDEVIR_assess_testset.md5) |
 
 The linked files are quite big, thus we recommend to download them using `wget` command as shown in the following example, or any other download specialized tool (like, for instance, `curl` or `FileZilla`).
 ```
