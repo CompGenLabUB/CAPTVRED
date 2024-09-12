@@ -130,12 +130,20 @@ nextflow main.nf
 --assembler upper case string. Available options are MEGAHIT(default) and METASPADES.
 --NCPUS integer. Default value is 32.
 ```
+All available options to modify pipeline parameters are described in the [documentation](docs/readme_DOCUMENTATION_virwaste.md).
+
 ### Optional nextflow parameters of interest:
 ```{.sh}
 -resume Execute the script using the cached results, useful to continue executions that were stopped by an error.
 -entry  Entry workflow name to be executed.
 ```
 All allowed commands can be found in:  _Nextflow documentation (https://www.nextflow.io/docs/latest/index.html) > Command line inteface(CLI) > Commands > run_
+
+### Run with SLURM
+
+If you are interested in running the pipeline in a HPC cluster, a SLURM profile template (`user_slurm.config`) is available in the repository. The template can be modified according to your cluster characteristics. To run the pipeline using SLURM maneger `-profile slurm` and `-params-file user_slurm.config` can be added to both commands, setup and main pipeline. 
+
+
 
 # Output:
 CAPTVRED produces an HTML report summarizing key findings to facilitate the visualization and interpretation of the results. From this page, the user can access the quality and the computational performance reports. It also includes summary tables for metadata and sequence recovery. 
