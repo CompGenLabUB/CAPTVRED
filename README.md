@@ -1,6 +1,6 @@
 <img src="./docs/captvred_logo.png" title="CAPTVRED" alt="CAPTVRED" width="350px" align="center" />
 
-CAPTVRED PIPELINE is designed to analyze viral metagenomics datasets from Target Enrichment Sequencing (or Capture-based Metagenomics). This pipeline provides an analysis for viral identification through alignment, assembly, and taxonomic classification of the sequenced reads. The analyses focus on the set of species of interest, for which the dataset has been enriched, and other related sequences from the same taxonomic family. **In the following lines we will refer to the set of genomic sequences of interest as Viral Candidates.**
+CAPTVRED PIPELINE is designed to analyze viral metagenomics datasets from Target Enrichment Sequencing (or Capture-based Metagenomics). This pipeline provides an analysis for viral identification through alignment, assembly, and taxonomic classification of the sequenced reads. The analyses focus on the set of species of interest, for which the dataset has been enriched, and other related sequences from the same taxonomic family. **In the following lines we will refer to the set of genomic sequences of interest as Viral Candidates.** Read the article [here](https://academic.oup.com/bioinformaticsadvances/article/4/1/vbae150/7815721).
 
 # Getting started:
 Before running the pipeline, the file system must be prepared as follows:
@@ -219,5 +219,11 @@ wget https://compgen.bio.ub.edu/datasets/CAPTVRED/CAPTVRED_testset.tar.gz
 wget https://compgen.bio.ub.edu/datasets/CAPTVRED/>PANDEVIR_assess_testset.tar.gz
 ```
 We also provide the corresponding `md5sum` checksums to ensure that those files were properly downloaded from the repository.
+
+# Cite us
+If you use CAPTVRED, please, cite us as follows:
+
+> Maria Tarradas-Alemany, Sandra Martínez-Puchol, Cristina Mejías-Molina, Marta Itarte, Marta Rusiñol, Sílvia Bofill-Mas, Josep F Abril, CAPTVRED: an automated pipeline for viral tracking and discovery from capture-based metagenomics samples, Bioinformatics Advances, Volume 4, Issue 1, 2024, vbae150, https://doi.org/10.1093/bioadv/vbae150
+
 
 
