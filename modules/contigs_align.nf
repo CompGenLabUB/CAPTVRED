@@ -52,7 +52,7 @@ process make_db_for_blast {
 
 
 process do_blastn {
-
+    cache false
     input:
         val query // with whole path
         val rdb // with whole path
@@ -66,11 +66,12 @@ process do_blastn {
        spid=query.toString().split('/')[-1].split('[.]')[0]
        blast_q=query.toString().split('/')[-1].replaceAll(".gz", "").replaceAll(".fa", "")
        blast_r=rdb.toString().split('/')[-1]
+
        blast_algn="${blast_q}_ON_${blast_r}.BLASTN.tbl"
        blast_dir="${out_dir}/${spid}"
        dbindex="${rdb}.nin";
        """
-
+        echo "Query is: ${query} !!!" >> /data/capdevir/ONEBAT/RUN1/log.kk
         if [ -d $blast_dir ]; then 
                 echo "$blast_dir"; 
             else 
@@ -88,6 +89,7 @@ process do_blastn {
                   -num_threads ${params.NCPUS}       \
                    2> ${blast_dir}/${blast_algn}.log 1>&2;
             else
+              echo " -- Query is: ${query} !!!" >> /data/capdevir/ONEBAT/RUN1/log.kk;
               blastn -query ${query} -db ${rdb}        -dust no                       \
                   -num_alignments 1 -perc_identity ${params.blast_pident}             \
                   -task blastn -out ${blast_dir}/${blast_algn}                        \
@@ -164,6 +166,9 @@ process do_tblastx {
 }
 
 process blast_sum_coverage {
+    
+    cache false
+    
     input:
         val (blastout)
         val (clids)
@@ -179,7 +184,7 @@ process blast_sum_coverage {
         val (bysq),            emit: BYSQ
         val (bysp),            emit: BYSP
         val (stats),           emit: SUM
-        val (stats),           emit: SUM2
+        val (stats),           emit: STA
       
     script:
     if (params.taxalg  ==~  /(?)BLASTN/){blalg="blastn"};
@@ -200,10 +205,12 @@ process blast_sum_coverage {
      stats="${rep_dir}/${sampid}.${blalg}.stats.out"
 
     """
+    echo "## BLASTOUT COV";
     if [ -s $blastout ]; then 
     ## Get summary of blast out coverage:
         ${bindir}/coverage_blastshorttbl.pl \
               $blastout > $blast_sumcov 2> $coverage_log;
+
         
         ## merge:
         if ($clids==F);   then 
@@ -223,6 +230,7 @@ process blast_sum_coverage {
                    -o ${blast_merge}  2> ${merge_log} 1>&2;
         fi;
     fi;
+
 
      cp  ${blast_merge}_taxonomysum_byread.tbl      ${byrd}
      cp  ${blast_merge}_taxonomysum_bysequence.tbl  ${bysq}
@@ -338,7 +346,7 @@ process do_cov_on_viralcandidates () {
             mkdir -p ${odir}/${spid};
             [ -e $finalblout ] && rm -v $finalblout;
             touch $finalblout;
-            for txn in \$(zcat $refSqsDef |  awk -vIFS='\t' '\$1!~/^#/ {print \$2}' - | sort | uniq);
+            for txn in \$(zcat $refSqsDef |  awk -vIFS='\\t' '\$1!~/^#/ {print \$2}' - | sort | uniq);
              do {
                   # 0. # Init files:
                         [ -e ${tmpdir}/${spid}.\${txn}.contigs.ids   ] && rm -v ${tmpdir}/${spid}.\${txn}.contigs.ids;

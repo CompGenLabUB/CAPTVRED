@@ -64,7 +64,7 @@ process db_for_kaiju_pred () {
         println "Link is: $link" 
         """
         mkdir -vp $odir;
-        wget $link -O  $fullpath  2>  $logfl;
+        wget $link --no-check-certificate -O  $fullpath  2>  $logfl;
         """
 
 }

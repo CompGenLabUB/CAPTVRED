@@ -20,6 +20,7 @@ process kaiju_contigs {
     kronaplt="${odir}/${samp_id}.contigs+sgl.kaiju.${db_id}.out.krona.html"
    
     """
+        echo "Using Conda env: \$CONDA_PREFIX" >> /data/capdevir/ONEBAT/RUN1/kk.log;
         ## Find taxonomy classification:
          [ -d ${odir} ] || mkdir -vp ${odir}
          kaiju -v -z ${task.cpus}                                   \

@@ -46,31 +46,37 @@ sumtbl_html=sumtbl.to_html(table_id="summarytbl",
                    ).replace('<thead>','<thead class="thead-dark">')
 #Taxonomy tables:
 for index, row in sd.iterrows():
-  idf=row[1]
-  aid="sample"+str(index)+"_tablink"
-  href="#sample"+str(index)+"_tabpanel"
-  ariactrls="sample"+str(index)+"_tabpanel"
-  dividsp="sample"+str(index)+"_sp"
-  dividsq="sample"+str(index)+"_sq"
-  dividrd="sample"+str(index)+"_rd"
-  bysp=pd.read_csv( idir + "/" + idf + "." + taxap + "_taxonomysum_byspecie.tbl" , sep="\t" )
-  bysp_html=bysp.to_html(  table_id="sptbl_".index, 
+   idf=row[0]  #Sample ID
+   bysp_path = f"{idir}/{idf}.{taxap}_taxonomysum_byspecie.tbl"
+   bysq_path = f"{idir}/{idf}.{taxap}_taxonomysum_bysequence.tbl"
+   byrd_path = f"{idir}/{idf}.{taxap}_taxonomysum_byread.tbl"
+   # Check if the file exists
+   if not os.path.exists(bysp_path):
+      continue # Skips to the next loop iteration
+   aid="sample"+str(index)+"_tablink"
+   href="#sample"+str(index)+"_tabpanel"
+   ariactrls="sample"+str(index)+"_tabpanel"
+   dividsp="sample"+str(index)+"_sp"
+   dividsq="sample"+str(index)+"_sq"
+   dividrd="sample"+str(index)+"_rd"
+   bysp=pd.read_csv( bysp_path , sep="\t" )
+   bysp_html=bysp.to_html(  table_id="sptbl_".index, 
                            border = 0, 
                            classes=myclasstr
                         ).replace('<thead>','<thead class="thead-dark">')
                         
-  bysq=pd.read_csv( idir + "/" + idf + "." + taxap +"_taxonomysum_byspecie.tbl", sep="\t" )
-  bysq_html=bysq.to_html(  table_id="sqtbl_".index, 
+   bysq=pd.read_csv( bysq_path, sep="\t" )
+   bysq_html=bysq.to_html(  table_id="sqtbl_".index, 
                            border = 0, 
                            classes=myclasstr
                         ).replace('<thead>','<thead class="thead-dark">')
-  byrd=pd.read_csv( idir + "/" + idf + "." + taxap + "_taxonomysum_byread.tbl", sep="\t" )
-  byrd_html=bysp.to_html(  table_id="rdtbl_".index, 
+   byrd=pd.read_csv( byrd_path, sep="\t" )
+   byrd_html=bysp.to_html(  table_id="rdtbl_".index, 
                            border = 0, 
                            classes=myclasstr
                         ).replace('<thead>','<thead class="thead-dark">')
   ## Nota pel futur: Aixoò millor amb un hash! 
-  samplesls.append( [idf, index, aid, href, ariactrls, dividsp, bysp_html, dividsq, bysq_html, dividrd, byrd_html] ) 
+   samplesls.append( [idf, index, aid, href, ariactrls, dividsp, bysp_html, dividsq, bysq_html, dividrd, byrd_html] )  
 
 print(samplesls[1][1], samplesls[1][0], samplesls[1][2], samplesls[1][3])
 print(samplesls[1][4], samplesls[1][5])

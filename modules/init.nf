@@ -1,7 +1,8 @@
 #! /usr/bin/env nextflow
 
 process create_logd {
-    input:
+
+input:
     val newdir
 
 output:
@@ -9,9 +10,12 @@ output:
 
 script:
 
+    println "AA"
     logfl="$newdir/create_filesystem.log"
+    println "-- $logfl --"
 
     """
+    
     #check if logfl exists and delete it
     [[ -f $logfl ]] && rm $logfl
     mkdir -vp $newdir

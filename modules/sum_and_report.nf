@@ -28,9 +28,11 @@ process make_summary_tbl {
     for i in \$(awk '\$1!~"^#"{print \$1}' $samplestb ); do 
          if [ \$assem == "megahit" ]; 
          then
+             [-e "${asbdir}/\${i}/\${i}.contigs.fa"] || continue;
              ncns=\$(grep -c '^>' "${asbdir}/\${i}/\${i}.contigs.fa");
          elif [ \$assem == "metaspades" ]; 
          then
+            [-e "${asbdir}/\${i}/scaffolds.fasta"] || continue;
              ncns=\$(grep -c '^>' "${asbdir}/\${i}/scaffolds.fasta");
          fi;
          

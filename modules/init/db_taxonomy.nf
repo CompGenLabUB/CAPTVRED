@@ -47,9 +47,10 @@ process set_info_files () {
         mkdir -vp $gffdir;
         $bindir/bp_genbank2gff3 $gbfl -o $gffdir  --split;
                
-        gawk -vOFS="\t"  '{
-            if (\$1=="VERSION"){printf "%s \t",  \$2}; 
-            if(\$1=="source"){split(\$2, coord, "."); print coord[1], coord[3]}  
+        gawk -vOFS="\\t"  '{ 
+             lbl=substr(\$0,1,11);
+             if (lbl~/^VERSION/){printf "%s \\t",  \$2}; 
+             if (lbl~/source\$/){split(\$2, coord, "."); print coord[1], coord[3]}  
         }' $gbfl > $coordgenomes;  
         
         python3 $bindir/create_set_summary.py  \

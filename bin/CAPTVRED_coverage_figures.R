@@ -136,7 +136,6 @@ for (txn in unique(genomes_rel$Tax)) { ## CHECK
                             format="gff3");
         # TxDb object
         ntx <- length(levels(as.factor(as.list(txdb)$transcripts$tx_id)));
-        colors.genes <- ifelse(ntx > 1, hcl.colors(ntx, palette="Spectral"), "blue");
         # parameters
         Xmin  <- as.integer(genomes_rel[genomes_rel$SeqId==rgn.v,]$Start);
         Xmax  <- as.integer(genomes_rel[genomes_rel$SeqId==rgn.v,]$End); # WE NEED genome length
@@ -147,15 +146,23 @@ for (txn in unique(genomes_rel$Tax)) { ## CHECK
         
         #plot
         print("Ploting refgen")
-        refgen <- autoplot(txdb,
-                           which=GRanges(rgn.id, IRanges(Xmin, Xmax)),
-                                         names.expr = "gene_id", fill=colors.genes) +
-                      theme_bw() +
-                      theme(panel.border = element_blank(),
-                            axis.text.y=element_blank(),
-                            text = element_text(size = 10),
-                            plot.title = element_text(size = 15)) +
-                      scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
+        if (ntx > 0) {
+            colors.genes <- ifelse(ntx > 1, hcl.colors(ntx, palette="Spectral"), "blue");
+            refgen <- autoplot(txdb,
+                              which=GRanges(rgn.id, IRanges(Xmin, Xmax)),
+                                            names.expr = "gene_id", fill=colors.genes) +
+                          theme_bw() +
+                          theme(panel.border = element_blank(),
+                                axis.text.y=element_blank(),
+                                text = element_text(size = 10),
+                                plot.title = element_text(size = 15)) +
+                          scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0));
+        }else{
+           refgen <- NA_plot( Xmax, 1, 'No transcrpts annotated')+
+                                scale_x_continuous(limits = c(Xmin, Xmax), expand = c(0, 0)) +
+                                theme(axis.text.x=element_text())
+        }
+          
     # Paired ends coverage
         
         #subset bam

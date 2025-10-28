@@ -1,6 +1,7 @@
 #! /usr/bin/env nextflow
 
 process bbduk_clean {
+    memory '169.MB' 
 
 	input:
   

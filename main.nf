@@ -96,7 +96,7 @@ workflow fastqc_onrawseqs() {
     def spstr=ids.join(",")
     def regx="$params.fastq_dir/{$spstr}$params.rawfq_sfx"
     
-    println "### SAMPS STRING IS:  $spstr ###"
+    println "### SAMPS STRING IS:  $spstr ### $regx ###"
     spschan=Channel.fromPath("$regx")
     fastQC(spschan, params.rawqc_dir, params.logs_dir) 
     sampsqual=fastQC.out.collect()
@@ -279,7 +279,7 @@ workflow direct_blast_n () {
         all_contigs
     main:
 
-        make_db_for_blast( ref_fasta, "FALSE") 
+        make_db_for_blast( ref_fasta, "TRUE") 
         do_blastn(all_contigs, make_db_for_blast.out.DB, params.subtax_dir)
         
         if (params.handle_contamination == true ) {
@@ -308,7 +308,7 @@ workflow direct_blast_n () {
         BY_SP=blast_sum_coverage.out.BYSP
         S_SUM=blast_sum_coverage.out.SUM
         CFA=all_contigs
-        DONE=blast_sum_coverage.out.SUM2
+        DONE=blast_sum_coverage.out.STA
 }
 
 workflow direct_blast_tx () {
@@ -340,7 +340,7 @@ workflow direct_blast_tx () {
         BY_SP=blast_sum_coverage.out.BYSP
         S_SUM=blast_sum_coverage.out.SUM
         CFA=all_contigs
-        DONE=blast_sum_coverage.out.SUM2
+        DONE=blast_sum_coverage.out.STA
 }
 
 
@@ -395,7 +395,7 @@ params.taxdir       =  "${params.basedir}/taxonomy"
 params.cov_dir      =   "${params.basedir}/coverage"
 params.reports_dir  =  "${params.basedir}/reports" 
 params.logs_dir     =  "${params.basedir}/logs"    
-params.html_dir     =  "${params.basedir}/html"    
+params.html_dir     =  "${params.ctvdir}/html"    
 
 if (params.assembler ==~ /(?i)MEGAHIT/){
         params.subasb_dir="$params.asbl_dir/megahit"
@@ -421,10 +421,11 @@ workflow () {
     println "# Starting  : $workflow.userName $ZERO $workflow.start"
     println "# Reading samples for $params.runID from $params.samp"
 
-    println " ### $workflow.launchDir ## $params.bindir ## $params.refseqs ## $params.tmp_dir ## $params.html_dir"
+    println " ### $workflow.launchDir ## $params.bindir ## $params.refseqs ## $params.tmp_dir ## $params.html_dir ## $params.logs_dir"
     //set_dep_params() // | collect | init_run()
     //Channel.of(set_dep_params.out).view()
     // def d = set_dep_params.out.collect()
+    
     def filesystem = Channel.of( params.tmp_dir,
                                params.fastq_dir,
                                params.clnfq_dir,
@@ -434,6 +435,8 @@ workflow () {
                                params.taxdir,
                                params.subtax_dir,
                                params.reports_dir)
+    
+
     create_logd(params.logs_dir)
     init_run(filesystem, create_logd.out) 
     

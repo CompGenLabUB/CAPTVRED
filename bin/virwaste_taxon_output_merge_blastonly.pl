@@ -19,14 +19,15 @@ use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 
 $global::_verbose{RAW} = 1;
 $_cntN = 50000;
-my $debug = 0; 
+my $debug = 1; 
 my $sampid;
 my $datab_info; # = $ARGV[0];
 my $blastcov;  # = $ARGV[1];
 my $clas_ids;  # = $ARGV[2];
 my $unclas_ids;  # = $ARGV[3];
 my $out_prefix;  # = $ARGV[4];
-my $mincov;
+my $q_mincov;
+my $t_mincov;
 my $petbl;   ## Tabular file obtained with samtools idxstats: each row is a contig, 3rd column is #pe-reads mapped 
 my $setbl;   ## Tabular file obtaiden with samtools idxstats: each row is a contig, 3rd column is #se-reads mapped 
 
@@ -34,7 +35,8 @@ GetOptions (
     'samp=s'            => \$sampid,
     'i|db_info=s'       => \$datab_info,
     'B=s'               => \$blastcov,
-    'mincov:i'          => \$mincov,
+    'q_mincov:i'        => \$q_mincov,
+    't_mincov:i'        => \$t_mincov,
     'c|class_ids:s'     => \$clas_ids,
     'u|unclass_ids:s'   => \$unclas_ids,
     'o|out_prefix=s'    => \$out_prefix,
@@ -58,7 +60,8 @@ my %apf = ();   #Approach used to found the hit (Kaiju or blast) + score. (HoL) 
 # 3 dicts used structure will be:
   #%qids={ contig ID = [length, BestHitlen, BestHitCoverage, Reference sequence, taxon_approach], ContigID2 =[...], ... }
 
-defined($mincov) || ($mincov=70);
+defined($q_mincov) || ($q_mincov=70);
+defined($t_mincov) || ($t_mincov=0);
 my $ci=defined($clas_ids) ? $clas_ids : "Not provided";
 my $ui=defined($unclas_ids) ? $unclas_ids : "Not provided";
 my $pf=defined($petbl) ? $petbl : "Not provided";
@@ -67,15 +70,16 @@ my $sf=defined($setbl) ? $setbl : "Not provided";
 print STDERR "\n=========================================\n";
 print STDERR "### RUNNING PARAMS ###  \n";
 print STDERR "=========================================\n";
-print STDERR "SAMPLE        :\t$sampid\n";
-print STDERR "DB  info  file:\t$datab_info\n";
-print STDERR "Coverage  file:\t$blastcov\n";
-print STDERR "Min.  coverage:\t$mincov\n";
-print STDERR "Class. ids  fl:\t$ci \n";
-print STDERR "Unc.  ids   fl:\t$ui \n";
-print STDERR "#pe-reads map :\t$pf\n";
-print STDERR "#se-reads map :\t$sf\n";
-print STDERR "Outfile prefix:\t$out_prefix\n";
+print STDERR "SAMPLE         :\t$sampid\n";
+print STDERR "DB  info   file:\t$datab_info\n";
+print STDERR "Coverage   file:\t$blastcov\n";
+print STDERR "Min. query  cov:\t$q_mincov\n";
+print STDERR "Min. target cov:\t$t_mincov\n";
+print STDERR "Class.  ids  fl:\t$ci \n";
+print STDERR "Unc.   ids   fl:\t$ui \n";
+print STDERR "#pe-reads  map :\t$pf\n";
+print STDERR "#se-reads  map :\t$sf\n";
+print STDERR "Outfile  prefix:\t$out_prefix\n";
 print STDERR "=========================================\n\n";
 
 # --------------------------------- Under construction ----#
@@ -148,7 +152,7 @@ my %qrcnts;    # n reads maped in each query
 while (<COV>) {
     next if /^\s*$/o;
     chomp;
-    my (@obs, $cid, $rf, $tag, $ks, $nrd, @t, @r);
+    my (@obs, $cid, $rf, $tag, $ks, $nrd, @t, @r, $pident, $extra, @extrainfo);
     @obs = split /\t/o, $_;
     $cid = $obs[1];
 
@@ -158,15 +162,21 @@ while (<COV>) {
          #%qids={ contig ID = [length, BestHitlen, BestHitCoverage, Reference sequence, taxon_approach, #reads], ContigID2 =[...], ... }
          #exists($qids{$obs[1]} ) && next;
          #print STDOUT $obs[1]."\n";
-         (undef, undef, $rf, undef) = split /\|/o, $obs[13];  
+         
+         $obs[12] >= $q_mincov || next;  ## Only pass reads over minimum coverage threshold.
+         
+         (undef, undef, $rf, $extra) = split /\|/o, $obs[13];  
+         @extrainfo=split /\s/o, $extra;  
+         $pident=$extrainfo[6];
             #refseq info is split to get only the seq ID;
          $tag = (defined($clas_ids) ? $apf{$cid}[0] : "B");
          $ks  = (defined($clas_ids) ? $apf{$cid}[1] : "NA");
          #exists ($rcounts{$obs[1]}) || ($rcounts{$obs[1]} = 1);  ## singletons
          $nrd = (exists($rcounts{$cid}) ? $rcounts{$cid} : 1);
-         $qids{$cid} = [ $tag, $obs[2], $obs[11], $obs[12], $rf, $ks, $nrd ];
-                     #  0.TAG   1.len   2.BHlen   3.BHCov  4.RefSqId  5.KaiScore  6.n.reads 
-         print STDERR join("\t", "LELELEL", @{$qids{$cid}});
+         
+         $qids{$cid} = [ $tag, $obs[2], $obs[11], $obs[12], $rf, $ks, $nrd, $pident ];
+                     #  0.TAG   1.len   2.BHlen   3.BHCov  4.RefSqId  5.KaiScore  6.n.reads 7.pident
+         print STDERR join("\t", "NEW ENTRY:",  $cid, @{$qids{$cid}});
          print STDERR "\n";
          exists($rids{$rf}) || ($rids{$rf} = { '##SUM##' => 0, '##NCTGS##' => 0 });
          $rids{$rf}{$cid} = $nrd;
@@ -202,7 +212,8 @@ while (<COV>) {
 &counter_end($n);
 close(COV);
 
-# print STDOUT Dumper \%rids;
+print STDERR "### RIDS !!! \n";
+print STDERR Dumper \%rids;
 
 print STDERR "### READING GENOMES INFO FILE\n";
 
@@ -252,7 +263,7 @@ while (<$GIN>) {
         foreach my $contigid (keys %{ $rids{$sid} }) {
             next if $contigid =~ /##(SUM|NCTGS)##/;
         #     $nreads += $qids{$contigid}[6];  ## nReads sumatory
-            push @{ $qids{$contigid} }, $tid, $spc, $fam if scalar(@{ $qids{$contigid} }) < 10;   ## Add species, family and taxonID information to queries HoL.
+            push @{ $qids{$contigid} }, $tid, $spc, $fam if scalar(@{ $qids{$contigid} }) < 11;   ## Add species, family and taxonID information to queries HoL.
         };
         push @{$tids{$sid}}, $tid, $spc, $fam, $ncontigs, $nreads;
 
@@ -274,6 +285,9 @@ close($GIN);
 # ( $datab_info =~ /.*gz/ ) ? ( $gzip->close; close($gzfl)) : close(GIN);
 #if ( $datab_info =~ /.*gz/ ) {$gzip->close; close($gzfl) }else { close(GIN)};
 
+printf STDERR "Q: %d T: %d \n", scalar(keys %qids), scalar( keys %tids);
+
+
 print STDERR "### WRITTING GENOMES INFORMATION\n";
 open ( ROUT, ">", join( "_", $out_prefix, "taxonomysum_bysequence.tbl" ));
 print ROUT "SEQUENCE_ID\tTAXON_ID\tSPECIES\tFAMILY\tSEQ_LENGTH\tNUCS_ALN\tCOVERAGE_PCT\tBHIT_IDENTITY\tBESTHSP_COUNT\tNREADS_MAPED\n";
@@ -282,7 +296,9 @@ my $m = 0; my %SC = ();
 my (@k,$kn,$taxon,$coverage,$pidentity,$nconts,$nreadsmp,$i,$info);
 my %FNDTID = ();
 foreach my $j (keys %tids){  # 0.SEQLEN 1.NUCALN 2.COVPCT 3.BHIDENT 4.TXNID 5.SPC 6.FAM 7.NCONTIGS 8.NREADS
-#    $kn = scalar @{ $tids{$j} } - 1;
+        $kn = scalar @{ $tids{$j} } - 1;
+        print STDERR "### entry has $kn FIELDS!!\n";
+        if ($kn < 8 ) {print STDERR "Problematic entry:"; print STDERR join(",", @{ $tids{$j}} ), "\n"; next }
         $taxon    =$tids{$j}[4];
         $coverage =$tids{$j}[2];
         $pidentity=$tids{$j}[3];
@@ -292,7 +308,8 @@ foreach my $j (keys %tids){  # 0.SEQLEN 1.NUCALN 2.COVPCT 3.BHIDENT 4.TXNID 5.SP
     $SC{$taxon}[0] += $nconts;
     $SC{$taxon}[1] += $nreadsmp;
     $m++;
-    ($coverage >= $mincov) || next;
+    print STDERR "id: $j fields: $kn  cov: $coverage ($t_mincov)  NCONTS: $nconts\n" if $debug;
+    ($coverage >= $t_mincov) || next;
     ($nconts > 0) || next;
         $FNDTID{$j}=$nconts;
         $SC{$taxon}[2] += $nconts;
@@ -359,13 +376,15 @@ close(SOUT);
 print STDERR "### WRITTING QUERIES INFORMATION\n";
 open(QOUT, ">", join( "_", $out_prefix, "taxonomysum_byread.tbl" ));
 print QOUT "READ_ID\tTAG\tREAD_LENGTH\tBESTHIT_LEN\tBESTHIT_COVERAGE\tREFSEQ_ID".
-           "\tKAIJU_SCORE\tNREADS_MAPED\tTAXONID\tSPECIES\tFAMILY\n";
+           "\tKAIJU_SCORE\tNREADS_MAPED\tPIDENT\tTAXONID\tSPECIES\tFAMILY\n";
 $c = "Q"; $n = 0;
 my %found = (); $m = 0;
 foreach my $i (keys %qids){
     #scalar @{$qids{$i}} == 10 || next;
  #   if ( @{$qids{$i}} != 10 ) { print STDOUT join("\t", $i, @{$qids{$i}}),"\n"; }
-    #@{$qids{$i}}[3] >= $mincov || next;
+ #   @{$qids{$i}}[3] >= $q_mincov || next; 
+              #This threshold is set in line 166 of this script
+
     my $tid = $qids{$i}[4];
     $m++;
     exists($found{$tid}) || ($found{$tid} = [ 0, 0, 0, 0 ]);
@@ -375,7 +394,7 @@ foreach my $i (keys %qids){
     $found{$tid}[2]++;
     $found{$tid}[3]+=$qids{$i}[6];
     print QOUT join("\t", $i, @{$qids{$i}}), "\n";
-          # ID   # TAG   len    BHlen   BHCov  RefSqId  KaiScore NREADS TXNID SPC FAM 
+          # ID   # TAG   len    BHlen   BHCov  RefSqId  KaiScore NREADS PIDENT TXNID SPC FAM 
     $n++;
     &counter($n,$c) if ($n % 1000 == 0);
 }; # foreach $i

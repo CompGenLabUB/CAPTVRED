@@ -10,7 +10,7 @@ process fastQC {
       val "$odir", emit: QCout
       
     script:
-        // println "## FASTQC on sample: $samps"
+        println "## FASTQC on sample: $samps"
         ofl=samps.toString().split("/")[-1].replaceAll(".gz|.sorted.mapped.bam", ".QC")
         odir="$rawfdir/$ofl"
         logfl=samps.toString().split("/")[-1].replaceAll(".gz|.sorted.mapped.bam", ".log")
