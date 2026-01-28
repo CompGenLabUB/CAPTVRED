@@ -1,49 +1,38 @@
 #! /usr/bin/env nextflow
 
 process bbduk_clean {
-    memory '169.MB' 
+    memory '8.GB' 
+	tag "$meta.id"
 
 	input:
-  
-	  val dep
-      tuple val(illuid), val(sampid)
-	  val logdir
-	  val REF
+	  tuple val(meta), path(reads)
 
 	output:
-	  val "${sampid}_pe1.fastq.gz", emit: outPE1
-	  val "${sampid}_pe2.fastq.gz", emit: outPE2
-	  val "${sampid}_sgl.fastq.gz", emit: outSGL
-
+	  tuple val(meta), path("${meta.id}_trim_{pe1,pe2,sgl}.fastq.gz"), emit: cleanReads
+	  // path("${meta.id}_trim_sgl.fastq.gz")                     , emit: cleanSgl
+	  path "${meta.id}_stats.out"                              , emit: stats
+      path "${meta.id}.bbduk.log"                              , emit: log
+	  
 
 
 	script:
-
-	logfl=sampid.toString().split("/")[-1]
-	logfl="${logdir}/${logfl}.bbduk_clean.log"
-	R1=params.R1
-	R2=params.R2
-
-	println "### bbduk_clean is running!"
+	
+	def mem = task.memory ? "-Xmx${task.memory.toGiga()-1}g" : ""
   
 	"""
-	extension=""
-	if [ -f ${illuid}${R1}.fastq.gz ]; then extension=".fastq.gz"; fi;
-	if [ -f ${illuid}${R1}.fq.gz ]; then extension=".fq.gz"; fi;
 
 	# Adapters Trimming:
-	bbduk.sh  in=${illuid}${R1}\${extension} \
-          in2=${illuid}${R2}\${extension} \
-          out=${sampid}_pe1.fastq.gz \
-          out2=${sampid}_pe2.fastq.gz \
-          outs=${sampid}_sgl.fastq.gz \
-          ref=${REF} \
+	bbduk.sh  in=${reads[0]} \
+          in2=${reads[1]} \
+          out=${meta.id}_trim_pe1.fastq.gz \
+          out2=${meta.id}_trim_pe2.fastq.gz \
+          outs=${meta.id}_trim_sgl.fastq.gz \
+          ref=${params.bbdukREF } \
           k=13 ktrim=r useshortkmers=t mink=5 \
           qtrim=t trimq=20 minlength=${params.bbdukMINLEN}           \
-          threads=${params.NCPUS} overwrite=true maq=${params.bbdukMAQ} \
-          stats=${sampid}_stats.out \
-         2> $logfl 1>&2 ;
-    touch ${sampid}.bbduk_clean.ok; 
+          threads=${task.cpus} overwrite=true maq=${params.bbdukMAQ} \
+          stats=${meta.id}_stats.out \
+         2> ${meta.id}.bbduk.log 1>&2 ;
 	"""
 
 }

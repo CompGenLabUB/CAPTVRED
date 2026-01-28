@@ -1,5 +1,10 @@
 #! /usr/bin/env nextflow
 
+// # --- some params --- #
+    params.refseqs       = "${workflow.projectDir}/references"
+    params.refseqs_fcsgx = "${params.refseqs}/db/gxdb"
+
+
 include { db_for_kaiju_pred; create_logf; stdrd_link } from './modules/init/init_conf.nf'
 include { stdrd_link as stdrd_link_otfm; stdrd_link as stdrd_link_set} from './modules/init/init_conf.nf'
 include { stdrd_link as stdrd_link_tax; stdrd_link as stdrd_link_tax_set; stdrd_link as stdrd_link_info} from './modules/init/init_conf.nf'
@@ -7,6 +12,8 @@ include { merge_rvdb_setref; chek_setref_ids; filter_FOI } from './modules/init/
 include { get_taxonids; get_taxonids_rvdb; set_info_files} from './modules/init/db_taxonomy.nf'
 include { taxonomizator; taxonomizator as taxonomizator_rvdb} from './modules/init/db_taxonomy.nf'
 include { get_rvdb; get_names_and_nodes;  get_accession2taxid } from './modules/init/update_files.nf' 
+// include {download_gxdb; download_fcs_image; FCSGX_FETCHDB} from './modules/fcs_tools.nf'
+include {FCSGX_FETCHDB} from './modules/fcs_tools.nf'
 
 
 if ( params.help ) {
@@ -48,63 +55,51 @@ workflow check_files () {
    
    main:
 
-      def do_dbsplit
-      def do_merge 
-      def do_dbdownl
       if( new File(subset).exists()){
-          if (params.dbsplit_update==true) {
-            do_dbsplit=true
-          }else{
-            do_dbsplit=false
-          }
+          println "Subset DB file found: $subset" 
+          params.dbsplit_update = params.dbsplit_update ?: false
       } else {
-         do_dbsplit=true
+         println "Subset DB file not found: $subset"
+         params.dbsplit_update = true
       }
 
 
       if( new File(merged).exists()){
-          if (params.merge_update==true) {
-            do_merge=true
-          }else{
-            do_merge=false
-          }
+            println "Merged DB file found: $merged" 
+            params.merge_update = params.merge_update ?: false
       } else {
-         do_merge=true
+         println "Merged DB file not found: $merged"
+         params.merge_update = true
       }
 
       if( new File(database).exists()){
-          if (params.db_update==true) {
-            do_dbdownl=true
-          }else{
-            do_dbdownl=false
-          }
+            println "Database file found: $database" 
+            params.db_update = params.db_update ?: false 
       } else {
-         do_dbdownl=true
-      }
-  
-      if (do_dbdownl==true){
-            do_merge=true
-      }
-      if (do_merge==true){
-            do_dbsplit=true
+         println "Database file not found: $database"
+         params.db_update = true
       }
 
-    println "##      FILES CHECKED!     ##"
-    println "# Updating database   : $do_dbdownl"
-    println "# Mergeing database   : $do_merge"
-    println "# Subsetting database : $do_dbsplit"
+      if (params.db_update)    params.merge_update=true
+      if (params.merge_update) params.dbsplit_update=true
+      
 
-   emit:
-      DWL=do_dbdownl
-      MRG=do_merge
-      SPT=do_dbsplit
+      println "## FILES CHECKED! ##"
+      println "# Updating database   : ${params.db_update}"
+      println "# Merging database    : ${params.merge_update}"
+      println "# Subsetting database : ${params.dbsplit_update}"
+
+    // dummy output channel to signal completion
+    emit:
+        completed_ch = Channel.value(true)
 
 }
+
 
 workflow database (){
    
    take:
-      cond
+      check
       dir
       link
       name
@@ -113,7 +108,8 @@ workflow database (){
 
 
    main:
-   if (cond){
+   if (params.db_update){
+      println "Download database is ${params.db_update}... Downloading RVDB database..."
       get_rvdb(dir, link, name, logf)
       outfl=get_rvdb.out
    } else {
@@ -129,7 +125,6 @@ workflow database (){
 workflow mergefasta () {
 
    take:
-      cond
       refseqs_ncbi
       refseqs_rvdb
       db_fa
@@ -140,7 +135,8 @@ workflow mergefasta () {
 
    main:
 
-      if (cond){
+      if (params.merge_update){
+         println "Merge database is ${params.merge_update}... Merging RVDB and targeted set sequences..."
          get_names_and_nodes(refseqs_ncbi, link, logf)
          chek_setref_ids(refseqs_rvdb, db_fa, set_fa, params.setname)
          merge_rvdb_setref(merged_fa, db_fa, params.db_name, chek_setref_ids.out, logf )
@@ -160,7 +156,6 @@ workflow mergefasta () {
 
 workflow database_subset (){
    take:
-      cond
       rvdbdir
       ncbidir
       bindir
@@ -176,8 +171,8 @@ workflow database_subset (){
    main:
       
       stdrd_link_set(set_fasta, "$rvdbdir/setseqs.fasta.gz", logf)
-      if (cond) {
-
+      if (params.dbsplit_update) {
+         println "Download database is ${params.dbsplit_update}... Downloading RVDB database..."
          get_accession2taxid(ncbidir, link, logf) 
 
          get_taxonids(rvdbdir, set_fasta, params.setname, get_accession2taxid.out)
@@ -210,31 +205,6 @@ workflow database_subset (){
       DS_OTH=O
 } 
 
-workflow download_kaijudbs () {
-   take:
-      odir
-      datab
-      log_file
-
-   main:
-      println "DB is: $datab"
-      println "Link is: $params.K_nr_euk_link"
-      def link = ":o"
-      if (val datab == "nr_euk"){
-         link = params.K_nr_euk_link
-      } else if (datab == "refseq") {
-         link = params.K_refseq_link
-      } else if (datab == "viruses") {
-         link = params.K_viruses_link
-      } else if (datab == "rvdb") {
-         link = params.K_rvdb_link
-      } else {
-         println "WARNING!! Unknown kaiju database! \n Available options are: nr_euk, refseqs, viruses, rvdb"
-      }
-     println "Link is: $link" 
-     db_for_kaiju_pred( odir, link, datab ,log_file )
-
-}
 
 // // // // // // MAIN // // // // // //  
     
@@ -242,14 +212,15 @@ workflow download_kaijudbs () {
     println "# Running   : $workflow.scriptId - $workflow.scriptName"
     println "# Project   : $workflow.projectDir"
     println "# Starting  : $workflow.userName  $workflow.start"
-
+    
 
 workflow {
-    def refseqs      = "${workflow.projectDir}/references"
-    def refseqs_kai  = "$refseqs/db/kaiju"
-    def refseqs_rvdb = "$refseqs/db/${params.refdb_name}"
-    def refseqs_gff  = "$refseqs_rvdb/gff_refgenomes"
-    def refseqs_ncbi = "$refseqs/db/ncbi"
+//    def refseqs       = "${workflow.projectDir}/references"
+    def refseqs_kai   = "${params.refseqs}/db/kaiju"
+    def refseqs_rvdb  = "${params.refseqs}/db/${params.refdb_name}"
+    def refseqs_gff   = "$refseqs_rvdb/gff_refgenomes"
+    def refseqs_ncbi  = "${params.refseqs}/db/ncbi"
+
    
     def bindir       = "${workflow.projectDir}/bin"
 
@@ -259,21 +230,32 @@ workflow {
     def foisubset    = "${refseqs_rvdb}/rvdb+${params.setname}_foi_subset.fasta.gz"
     def othersubset  = "${refseqs_rvdb}/rvdb+${params.setname}_other_subset.fasta.gz"
     
+    def gxdb_rm      = "${params.refseqs_fcsgx}/all.README.txt"
+    
+         log.info """
+    ===========================================
+    I N I T   P I P E L I N E
+    ===========================================
+    FCS-GX DB Path : ${params.refseqs_fcsgx}
+    Manifest       : ${params.src_mft}
+    ===========================================
+    """         
         check_files(rvdb_fa, merged_fa, foisubset)
-
-        create_logf(refseqs)
+        view(check_files.out)
+        chek_completion=check_files.out.completed_ch
+        create_logf(params.refseqs)
         def log_file=create_logf.out
 
-        database( check_files.out.DWL,
-                      refseqs_rvdb, 
-                      params.rvdb_link, 
-                      params.db_name, 
-                      log_file, 
-                      rvdb_fa
+        
+        database( chek_completion,
+                  refseqs_rvdb, 
+                  params.rvdb_link, 
+                  params.db_name, 
+                  log_file, 
+                  rvdb_fa
                     )
-
-         mergefasta( check_files.out.MRG,
-                        refseqs_ncbi, 
+         
+         mergefasta( refseqs_ncbi, 
                         refseqs_rvdb, 
                         database.out,
                         params.set_seqs, 
@@ -282,8 +264,7 @@ workflow {
                         create_logf.out
                      )
 
-         database_subset( check_files.out.SPT,
-                          refseqs_rvdb, 
+         database_subset( refseqs_rvdb, 
                           mergefasta.out.NCBID, 
                           bindir, 
                           refseqs_gff,
@@ -294,18 +275,103 @@ workflow {
                           params.acc2tax_link,
                           create_logf.out
                      )
+        
+    FCSGX_FETCHDB(params.src_mft)
 
-   if (params.customdb) {
-            db_for_kaiju(params.dbtomake, log_file)
-            println "AAAAAA"
-         } else {
-            println "EEEEEE"
-            def kaidatabases=Channel.from(params.kaiju_db)
-               .splitCsv()
-               .flatten()
-            println "$refseqs_kai"
-           // download_kaijudbs(refseqs_kai, Channel.from(params.kaiju_db).splitCsv().flatten() , log_file )
-           // download_kaijudbs(refseqs_kai, kaidatabases, log_file )
-         db_for_kaiju_pred(refseqs_kai, kaidatabases, log_file )
-         }
+   
 }
+
+
+      //  check_gxdb(gxdb_rm)
+      //  get_gxdb(check_gxdb.out, 
+      //           params.src_mft, 
+      //           bindir, 
+      //           refseqs_fcsgx )
+      
+      
+      
+    // manifest_url = "https://ncbi-fcs-gx.s3.amazonaws.com/gxdb/latest/all.manifest"
+    // FCSGX_FETCHDB(manifest_url)
+
+   // if (params.customdb) {
+   //          db_for_kaiju(params.dbtomake, log_file)
+   //          println "AAAAAA"
+   //       } else {
+   //          println "EEEEEE"
+   //          def kaidatabases=Channel.from(params.kaiju_db)
+   //             .splitCsv()
+   //             .flatten()
+   //          println "$refseqs_kai"
+   //         // download_kaijudbs(refseqs_kai, Channel.from(params.kaiju_db).splitCsv().flatten() , log_file )
+   //         // download_kaijudbs(refseqs_kai, kaidatabases, log_file )
+   //       db_for_kaiju_pred(refseqs_kai, kaidatabases, log_file )
+   //       }
+
+// 
+// workflow check_gxdb () {
+//    take:
+//       gxdb_txt
+//    
+//    main:
+//       def do_gxdb
+//       if( new File(gxdb_txt).exists()){
+//           params.gxdb_update = params.gxdb_update ?: false
+//       } else {
+//          params.gxdb_update=true
+//       }
+//       
+//     
+//     println "##   FCS-GX   FILES CHECKED!     ##"
+//     println "# Updating database  :   ${params.gxdb_update} "
+//    
+//     emit:
+//         completed_ch = Channel.value(true)
+// 
+// }
+//     
+// 
+// 
+
+// workflow get_gxdb (){
+//    
+//    take:
+//       check
+//       source_mft
+//       bindir
+//       dbdir
+// 
+//    main:
+//    if (params.gxdb_update){
+//       download_fcs_image()
+//       download_gxdb(download_fcs_image.out, source_mft, bindir, dbdir)
+//    
+//    } 
+// 
+// }
+
+
+ // workflow download_kaijudbs () {
+ //    take:
+ //       odir
+ //       datab
+ //       log_file
+ // 
+ //    main:
+ //       println "DB is: $datab"
+ //       println "Link is: $params.K_nr_euk_link"
+ //       def link = ":o"
+ //       if (val datab == "nr_euk"){
+ //          link = params.K_nr_euk_link
+ //       } else if (datab == "refseq") {
+ //          link = params.K_refseq_link
+ //       } else if (datab == "viruses") {
+ //          link = params.K_viruses_link
+ //       } else if (datab == "rvdb") {
+ //          link = params.K_rvdb_link
+ //       } else {
+ //          println "WARNING!! Unknown kaiju database! \n Available options are: nr_euk, refseqs, viruses, rvdb"
+ //       }
+ //      println "Link is: $link" 
+ //      db_for_kaiju_pred( odir, link, datab ,log_file )
+ // 
+ // }

@@ -49,6 +49,7 @@ dependencies:
   - blast
   - gawk
   - kaiju=1.9.0
+  - requests
   # R-packages
   - r-base=4.0.5
   - r-ggplot2
@@ -61,4 +62,5 @@ dependencies:
   - bioconductor-GenomicAlignments
   - bioconductor-VariantAnnotation
   - bioconductor-ggbio
-
+  - ncbi-fcs-gx
+  - curl

@@ -1,54 +1,110 @@
 #! /usr/bin/env nextflow
 
-
-process make_db_for_blast {
+ process blast_makedb {
+    tag "$dbname"
+     
     input:
-        val(refseqs_fasta)
-        val(redodb)
+         path(fasta)
+         val(dbname)
+ 
+    output:
+        tuple val(dbname), path("${dbname}*"), emit: db
+        path "*.log",      emit: log
+     
+    script:
+
+    """
+        if [[ "${fasta}" == *.gz ]]; then
+                gunzip -c "${fasta}" > temp_db.fa
+                input_query="temp_db.fa"
+        else
+                input_query="${fasta}"
+        fi;
+        makeblastdb            \
+            -in \$input_query  \
+            -dbtype nucl       \
+            -title "${dbname}" \
+            -out ${dbname}     \
+            2> ${dbname}.log
+
+        rm -f temp_db.fa
+     
+    """
+ 
+ }
+
+ process blast_search {
+    tag "$meta.id"
+    
+    input:
+        tuple val(meta), path(assembly)
+        tuple val(dbname), path(db_files)
 
     output:
-
-        val "${out_db}", emit: DB
-        val "${is_db}", emit: CTRL
+        tuple val(meta), path("${meta.id}_blastn.out"), emit: blOUT
+        path("*log"), emit: log
 
     script:
-    
-        out_db=refseqs_fasta.toString().replaceAll(".fasta.gz|.fasta|.fa.gz|.fa", "_blastdb")
-        dblist=out_db.split('/')
-        db_name=dblist[-1]
-        cdfile=[dblist[0..dblist.size()-2].join('/'), "blastdb_created_genome.cdate"].join('/')
-        spid=refseqs_fasta.toString().split('/')[-1].split('[.]')[0]
-       """
-        if [ -s ${refseqs_fasta} ]; then
-              if [ -e ${cdfile} -a ${redodb} == "FALSE" ]; then
-                 cat ${cdfile} 1>&2;
-                    
-              else
-                     if [[ \$(echo ${refseqs_fasta}) =~ .gz\$ ]]; then
-                         gunzip -c ${refseqs_fasta}               | \
-                           makeblastdb -in -  -dbtype nucl         \
-                                       -title \"${db_name}\"       \
-                                       -out ${out_db}              \
-                                       2> ${out_db}.log  1>&2;
-                                       
-                           date +"DB created on %Y/%m/%d %T %Z %s"    \
-                              > ${cdfile};
-                     else
-                         makeblastdb -in ${refseqs_fasta}  -dbtype nucl    \
-                                      -title \"${db_name}\"                 \
-                                      -out ${out_db}                        \
-                                      2> ${out_db}.log  1>&2;
-                                           
-                         date +"DB created on %Y/%m/%d %T %Z %s"       \
-                            > ${cdfile};
-                     fi;
-              fi;
-         else
-             echo "${refseqs_fasta} is empty... Cannot create a blastdb\n" > ${out_db}.log
-             
-        fi;
-        """
-}
+    """
+        blastn -query ${assembly} -db ${dbname}        -dust no               \
+          -num_alignments 1 -perc_identity ${params.blast_pident}             \
+          -task blastn                      -out ${meta.id}_blastn.out        \
+          -evalue  ${params.blast_eval}     -dbsize ${params.taxondbsize}     \
+          -outfmt \"${params.bl_outfmt}\"   -num_threads ${task.cpus}         \
+           2> ${meta.id}_blastn.log 1>&2;
+    """
+ }
+
+
+ // 
+ // process make_db_for_blast {
+ //     input:
+ //         val(refseqs_fasta)
+ //         val(redodb)
+ // 
+ //     output:
+ // 
+ //         val "${out_db}", emit: DB
+ //         val "${is_db}", emit: CTRL
+ // 
+ //     script:
+ //     
+ //         out_db=refseqs_fasta.toString().replaceAll(".fasta.gz|.fasta|.fa.gz|.fa", "_blastdb")
+ //         dblist=out_db.split('/')
+ //         db_name=dblist[-1]
+ //         cdfile=[dblist[0..dblist.size()-2].join('/'), "blastdb_created_genome.cdate"].join('/')
+ //         spid=refseqs_fasta.toString().split('/')[-1].split('[.]')[0]
+ //        """
+ //         if [ -s ${refseqs_fasta} ]; then
+ //               if [ -e ${cdfile} -a ${redodb} == "FALSE" ]; then
+ //                  cat ${cdfile} 1>&2;
+ //                     
+ //               else
+ //                      if [[ \$(echo ${refseqs_fasta}) =~ .gz\$ ]]; then
+ //                          gunzip -c ${refseqs_fasta}               | \
+ //                            makeblastdb -in -  -dbtype nucl         \
+ //                                        -title \"${db_name}\"       \
+ //                                        -out ${out_db}              \
+ //                                        2> ${out_db}.log  1>&2;
+ //                                        
+ //                            date +"DB created on %Y/%m/%d %T %Z %s"    \
+ //                               > ${cdfile};
+ //                      else
+ //                          makeblastdb -in ${refseqs_fasta}  -dbtype nucl    \
+ //                                       -title \"${db_name}\"                 \
+ //                                       -out ${out_db}                        \
+ //                                       2> ${out_db}.log  1>&2;
+ //                                            
+ //                          date +"DB created on %Y/%m/%d %T %Z %s"       \
+ //                             > ${cdfile};
+ //                      fi;
+ //               fi;
+ //          else
+ //              echo "${refseqs_fasta} is empty... Cannot create a blastdb\n" > ${out_db}.log
+ //              
+ //         fi;
+ //         """
+ // }
 
 
 process do_blastn {
@@ -167,78 +223,127 @@ process do_tblastx {
 
 process blast_sum_coverage {
     
-    cache false
+    tag "$meta.id"
     
     input:
-        val (blastout)
-        val (clids)
-        val (unids)
-        val (refdb_dir)
-        val (asbl_dir)
-        val (bindir)
-        val (rep_dir)
+        tuple val(meta), path(blastout), path(pe), path(single)
+        path(db_taxonomy)
         
     output:
-        val (blast_sumcov),    emit: TBL
-        val (byrd),            emit: BYR
-        val (bysq),            emit: BYSQ
-        val (bysp),            emit: BYSP
-        val (stats),           emit: SUM
-        val (stats),           emit: STA
+        path ("*coverage.tbl"), emit: TBLCOV
+        path ("*taxonomysum*.tbl"), emit: TAXSUM
+        path ("*stats.out"), emit: STATS
+        path("*.log"), emit: LOG
+        
       
     script:
-    if (params.taxalg  ==~  /(?)BLASTN/){blalg="blastn"};
-    if (params.taxalg  ==~  /(?)TBLASTX/){ blalg="tblastx"};
-
-    blast_sumcov=blastout.replaceAll(/\.tbl/,".coverage.tbl")
-    coverage_log=blastout.replaceAll(/\.tbl/,".coverage.tbl.log")
+    def clids="F"
+    def unids="F"
     
-    blast_merge=blastout.replaceAll(/\.tbl/,".merge")
-    merge_log=blast_sumcov.replaceAll(/\.tbl/,".merge.tbl.log")
-    
-    sampid=blast_sumcov.split('/')[-1].split('[.]')[0]
-    
-     //reports dir
-     byrd="${rep_dir}/${sampid}.${blalg}_taxonomysum_byread.tbl"
-     bysq="${rep_dir}/${sampid}.${blalg}_taxonomysum_bysequence.tbl"
-     bysp="${rep_dir}/${sampid}.${blalg}_taxonomysum_byspecie.tbl"
-     stats="${rep_dir}/${sampid}.${blalg}.stats.out"
-
     """
     echo "## BLASTOUT COV";
     if [ -s $blastout ]; then 
     ## Get summary of blast out coverage:
-        ${bindir}/coverage_blastshorttbl.pl \
-              $blastout > $blast_sumcov 2> $coverage_log;
+        ${params.bindir}/coverage_blastshorttbl.pl                 \
+              ${blastout} > ${meta.id}_blastn.coverage.tbl  \
+              2> ${meta.id}_blastn.coverage.log;
 
         
         ## merge:
         if ($clids==F);   then 
-                ${bindir}/virwaste_taxon_output_merge_blastonly.pl                                    \
-                  -i ${refdb_dir}/${params.full_tax}                                                  \
-                  -B $blast_sumcov   --mincov ${params.mincovpct}                                     \
-                   --pe ${asbl_dir}/${sampid}/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats     \
-                   --sg ${asbl_dir}/${sampid}/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats     \
-                   --samp ${sampid}   -o ${blast_merge}  2> ${merge_log} 1>&2;
+                ${params.bindir}/virwaste_taxon_output_merge_blastonly.pl                                    \
+                  -i ${db_taxonomy}                                                                   \
+                  -B ${meta.id}_blastn.coverage.tbl   --mincov ${params.mincovpct}                    \
+                   --pe ${pe}   --sg ${single}                                                        \
+                   --samp ${meta.id}   -o ${meta.id}_blastn.coverage.merge                            \
+                     2> ${meta.id}_blastn.coverage.merge 1>&2;
         else
-                ${bindir}/virwaste_taxon_output_merge_blastonly.pl                                    \
-                  -i ${refdb_dir}/${params.full_tax}                                                  \
-                  -B $blast_sumcov   --mincov ${params.mincovpct}                                     \
-                  --pe ${asbl_dir}/${sampid}/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats      \
-                  --sg ${asbl_dir}/${sampid}/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats      \
-                   -c ${clids}  -u ${unids}         --samp ${sampid}                                  \
-                   -o ${blast_merge}  2> ${merge_log} 1>&2;
+                ${params.bindir}/virwaste_taxon_output_merge_blastonly.pl                                    \
+                  -i ${db_taxonomy}                                                                   \
+                  -B ${meta.id}_blastn.coverage.tbl   --mincov ${params.mincovpct}                    \
+                  --pe ${pe}    --sg ${single}                                                        \
+                   -c ${clids}  -u ${unids}         --samp ${meta.id}                                 \
+                   -o ${meta.id}_blastn.coverage.merge  2> ${meta.id}_blastn.coverage.merge 1>&2;
         fi;
     fi;
-
-
-     cp  ${blast_merge}_taxonomysum_byread.tbl      ${byrd}
-     cp  ${blast_merge}_taxonomysum_bysequence.tbl  ${bysq}
-     cp  ${blast_merge}_taxonomysum_byspecie.tbl    ${bysp}
-     cp  ${blast_merge}.stats.out                   ${stats}
     
     """ 
 }
+
+ // process blast_sum_coverage_old {
+ //     
+ //     cache false
+ //     
+ //     input:
+ //         val (blastout)
+ //         val (clids)
+ //         val (unids)
+ //         val (refdb_dir)
+ //         val (asbl_dir)
+ //         val (bindir)
+ //         val (rep_dir)
+ //         
+ //     output:
+ //         val (blast_sumcov),    emit: TBL
+ //         val (byrd),            emit: BYR
+ //         val (bysq),            emit: BYSQ
+ //         val (bysp),            emit: BYSP
+ //         val (stats),           emit: SUM
+ //         val (stats),           emit: STA
+ //       
+ //     script:
+ //     if (params.taxalg  ==~  /(?)BLASTN/){blalg="blastn"};
+ //     if (params.taxalg  ==~  /(?)TBLASTX/){ blalg="tblastx"};
+ // 
+ //     blast_sumcov=blastout.replaceAll(/\.tbl/,".coverage.tbl")
+ //     coverage_log=blastout.replaceAll(/\.tbl/,".coverage.tbl.log")
+ //     
+ //     blast_merge=blastout.replaceAll(/\.tbl/,".merge")
+ //     merge_log=blast_sumcov.replaceAll(/\.tbl/,".merge.tbl.log")
+ //     
+ //     sampid=blast_sumcov.split('/')[-1].split('[.]')[0]
+ //     
+ //      //reports dir
+ //      byrd="${rep_dir}/${sampid}.${blalg}_taxonomysum_byread.tbl"
+ //      bysq="${rep_dir}/${sampid}.${blalg}_taxonomysum_bysequence.tbl"
+ //      bysp="${rep_dir}/${sampid}.${blalg}_taxonomysum_byspecie.tbl"
+ //      stats="${rep_dir}/${sampid}.${blalg}.stats.out"
+ // 
+ //     """
+ //     echo "## BLASTOUT COV";
+ //     if [ -s $blastout ]; then 
+ //     ## Get summary of blast out coverage:
+ //         ${bindir}/coverage_blastshorttbl.pl \
+ //               $blastout > $blast_sumcov 2> $coverage_log;
+ // 
+ //         
+ //         ## merge:
+ //         if ($clids==F);   then 
+ //                 ${bindir}/virwaste_taxon_output_merge_blastonly.pl                                    \
+ //                   -i ${refdb_dir}/${params.full_tax}                                                  \
+ //                   -B $blast_sumcov   --mincov ${params.mincovpct}                                     \
+ //                    --pe ${asbl_dir}/${sampid}/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats     \
+ //                    --sg ${asbl_dir}/${sampid}/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats     \
+ //                    --samp ${sampid}   -o ${blast_merge}  2> ${merge_log} 1>&2;
+ //         else
+ //                 ${bindir}/virwaste_taxon_output_merge_blastonly.pl                                    \
+ //                   -i ${refdb_dir}/${params.full_tax}                                                  \
+ //                   -B $blast_sumcov   --mincov ${params.mincovpct}                                     \
+ //                   --pe ${asbl_dir}/${sampid}/${sampid}_pe.bowtie_onto_contigs.maped.sorted.stats      \
+ //                   --sg ${asbl_dir}/${sampid}/${sampid}_se.bowtie_onto_contigs.maped.sorted.stats      \
+ //                    -c ${clids}  -u ${unids}         --samp ${sampid}                                  \
+ //                    -o ${blast_merge}  2> ${merge_log} 1>&2;
+ //         fi;
+ //     fi;
+ // 
+ // 
+ //      cp  ${blast_merge}_taxonomysum_byread.tbl      ${byrd}
+ //      cp  ${blast_merge}_taxonomysum_bysequence.tbl  ${bysq}
+ //      cp  ${blast_merge}_taxonomysum_byspecie.tbl    ${bysp}
+ //      cp  ${blast_merge}.stats.out                   ${stats}
+ //     
+ //     """ 
+ // }
 
 /*
 process do_cov_onrefseqs () {  

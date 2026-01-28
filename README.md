@@ -5,6 +5,10 @@ CAPTVRED PIPELINE is designed to analyze viral metagenomics datasets from Target
 # Getting started:
 Before running the pipeline, the file system must be prepared as follows:
 
+### System requirements: <br />
+- Tenir el Nextflow instalat
+- container: Permisos docker o apptiner (former Singuarity) >=3.0
+
 ### Prepare the files <br />
 
 ##### A) Viral Candidates fasta:</u> <br />
@@ -101,6 +105,7 @@ nextflow -C init_nextflow.config                        \
 > **Some considerations:**<br />
 > - Please ensure to lauch this command from the project directory.<br />
 > - This step might take some time since it needs to download and process the reference database.<br />
+> - By default Singularity is used to automatically download and run some required Docker container ensuring compatibility on Linux systems without requiring Docker installation or elevated permissions. Windows and macOS users can alternatively run the pipeline with Docker using the ```-profile docker``` option.<br />
 <details>
   <summary><bl>More details about the references setup<bl></summary>
   <br />
